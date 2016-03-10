@@ -9,47 +9,35 @@ Wikibooks: Algorithm Implementation/Strings/Levenshtein distance - Python Code:
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#Python
 '''
 
+import sys
 import numpy as np
 import timeit
+import re
+import time
 
-logfile = "/home/cliu/Documents/SC-1/messages"
+
+
+logfile = "/home/cliu/Documents/SC-1/temp"
 outfile = "/home/cliu/Documents/SC-1/output"
-    
+console = "/home/cliu/Documents/SC-1/console"
 
+# delimiters for dividing a log into tokens
+delimiter = r'[ ,:()\[\]=|/\\{}\'\"]+' # ,:()[]=|\/{}'"
 
-def levenshtein(s1, s2):
-    '''
-    Dynamic Programming algorithm, with the added optimization that 
-    Only the last two rows of the dynamic programming matrix are needed for the computation
-    '''
-    if len(s1) < len(s2):
-        return levenshtein(s2, s1)
+# two logs with editing distance less than distance_threshold are considered to be similar
+distance_threshold = 0.5
 
-    # len(s1) >= len(s2)
-    if len(s2) == 0:
-        return len(s1)
-
-    previous_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        current_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            insertions = previous_row[j + 1] + 1 # j+1 instead of j since previous_row and current_row are one character longer
-            deletions = current_row[j] + 1       # than s2
-            substitutions = previous_row[j] + (c1 != c2)
-            current_row.append(min(insertions, deletions, substitutions))
-        previous_row = current_row
-    
-    return (float(previous_row[-1]) / float(max(len(s1), len(s2))))
 
 
 
 def levenshteinVec(source, target):
     '''
-    Vectorized version of the levenshtein(s1, s2):, using NumPy. 
-    About 40% faster based on some test case.
+    Dynamic Programming algorithm, with the added optimization that 
+    Only the last two rows of the dynamic programming matrix are needed for the computation
+    Vectorized version using NumPy. 
     '''
     if len(source) < len(target):
-        return levenshtein(target, source)
+        return levenshteinVec(target, source)
 
     # So now we have len(source) >= len(target).
     if len(target) == 0:
@@ -86,24 +74,112 @@ def levenshteinVec(source, target):
 
 
 
+def isTimeStamp(input_str):
+    '''
+    Check whether input str is with time format like: Feb 11 05:22:51
+    '''
+    try:
+        time.strptime(input_str, '%b %d %H:%M:%S ')
+        return True
+    except ValueError:
+        return False
 
+
+
+def minDistance(added_line, cluster_dict):
+    '''
+    Calculate the minimal distance between the log and all the clusters
+    Return the minimal distance and its index
+    '''
+    distance = []
+    added_line_tokens = re.split(delimiter, added_line[16:])
+    for cluster_num in cluster_dict:
+        cluster = cluster_dict[cluster_num]
+        cluster_line_tokens = re.split(delimiter, cluster[0][16:])
+        distance.append(levenshteinVec(cluster_line_tokens, added_line_tokens))
+    #print distance
+    min_index = np.argmin(distance)
+    min_dis = distance[min_index]
+
+    return min_dis, min_index
 
 
             
 def main():
+
+    cluster_dict = {}
+    num = 0
+ 
     with open(logfile) as f:
         with open(outfile, 'w') as o:
-            curr_line = f.readline()[16:]
-            o.write(str(levenshteinVec(curr_line, curr_line)) + '  ' + curr_line)
+            added_line = f.readline()
+            while not isTimeStamp(added_line[:16]):
+                added_line = f.readline()
             for line in f:
-                line = line[16:]
-                edit_dis = levenshteinVec(curr_line, line)
-                if edit_dis < 0.1:
-                    o.write(str(edit_dis) + '  ' + line)
-                
-                
+                print num
+                num = num +1
+                if not isTimeStamp(line[:16]):
+                    added_line = added_line.rstrip() + ' ' + line.rstrip()
+                    continue
+                else:
+                    if not added_line.endswith('\n'):
+                        added_line = added_line + '\n'
+                    #o.write(added_line)
+                     
+                    if not cluster_dict:
+                        cluster_dict[0] = [added_line]
+                    else:
+                        #cluster_dict[len(cluster_dict)] = [added_line]
+                        min_dis, min_index = minDistance(added_line, cluster_dict)
+                        if min_dis < distance_threshold:
+                            cluster_dict[min_index].append(added_line)
+                        else:
+                            cluster_dict[len(cluster_dict)] = [added_line]
+
+                    added_line = line
+                    
+            # add the last line        
+            #o.write(added_line)
+            #cluster_dict[len(cluster_dict)] = [added_line]
+            min_dis, min_index = minDistance(added_line, cluster_dict)
+            if min_dis < distance_threshold:
+                cluster_dict[min_index].append(added_line)
+            else:
+                cluster_dict[len(cluster_dict)] = [added_line]
+
+
+    sys.stdout = open(console, 'w')
+    for i in cluster_dict:
+        print i
+        for item in cluster_dict[i]:
+            print item    
+        
+     
+    
+    # ------------------------------ For debugging ------------------------------ #
+    #list1 = ['a', 'b', 'c', 'd']
+    #list2 = ['a', 'b', 'c', 'd', 'e']   
+    #print levenshteinVec(list1, list2) 
+    #str1 = "SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: completed 2 of 2 procedures (100 percent)"   
+    #print re.split(delimiter, str1)         
+    #string1 = 'adqe!f-'
+    #string2 = 'adqef-'
+    #print levenshteinVec(string1, string2)
+    #print isTimeStamp("Feb 17 04:16:54 a"[:16])
+    #with open(logfile) as f:
+    #    print str(f.readline()).endswith('\n')
+    #print bool({})
+    # ------------------------------ For debugging ------------------------------ #
+    
+    print "Stop..."
+    
+
+
+
+
 
 if __name__ == "__main__":
+    #sys.stdout = open(console, 'w')
     main()
     #print(timeit.timeit("main()", number=10 ,setup="from __main__ import main"))          
             
