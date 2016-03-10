@@ -22,10 +22,13 @@ outfile = "/home/cliu/Documents/SC-1/output"
 console = "/home/cliu/Documents/SC-1/console"
 
 # delimiters for dividing a log into tokens
-delimiter = r'[ ,:()\[\]=|/\\{}\'\"]+' # ,:()[]=|\/{}'"
+delimiter = r'[ ,:()\[\]=|/\\{}\'\"]+' # ,:()[]=|\/{}'"          no <>
 
 # two logs with editing distance less than distance_threshold are considered to be similar
-distance_threshold = 0.5
+distance_threshold = 0.4
+
+# how many chars are ignored from the beginning of a log (because of the time-stamp, server-name, etc.)
+ignored_chars = 21
 
 
 
@@ -92,10 +95,10 @@ def minDistance(added_line, cluster_dict):
     Return the minimal distance and its index
     '''
     distance = []
-    added_line_tokens = re.split(delimiter, added_line[16:])
+    added_line_tokens = replaceNumByWildcard(re.split(delimiter, added_line[ignored_chars:]))
     for cluster_num in cluster_dict:
         cluster = cluster_dict[cluster_num]
-        cluster_line_tokens = re.split(delimiter, cluster[0][16:])
+        cluster_line_tokens = replaceNumByWildcard(re.split(delimiter, cluster[0][ignored_chars:]))
         distance.append(levenshteinVec(cluster_line_tokens, added_line_tokens))
     #print distance
     min_index = np.argmin(distance)
@@ -104,12 +107,19 @@ def minDistance(added_line, cluster_dict):
     return min_dis, min_index
 
 
+
+def replaceNumByWildcard(tokens):
+    for i in range(0, len(tokens)):
+        if tokens[i].isdigit() or re.search(r'0x[\da-fA-F]', tokens[i]) is not None:
+            tokens[i] = '*'   
+    return tokens
+
             
 def main():
-
+ 
     cluster_dict = {}
     num = 0
- 
+    
     with open(logfile) as f:
         with open(outfile, 'w') as o:
             added_line = f.readline()
@@ -125,7 +135,7 @@ def main():
                     if not added_line.endswith('\n'):
                         added_line = added_line + '\n'
                     #o.write(added_line)
-                     
+                        
                     if not cluster_dict:
                         cluster_dict[0] = [added_line]
                     else:
@@ -135,9 +145,9 @@ def main():
                             cluster_dict[min_index].append(added_line)
                         else:
                             cluster_dict[len(cluster_dict)] = [added_line]
-
+   
                     added_line = line
-                    
+                       
             # add the last line        
             #o.write(added_line)
             #cluster_dict[len(cluster_dict)] = [added_line]
@@ -146,8 +156,8 @@ def main():
                 cluster_dict[min_index].append(added_line)
             else:
                 cluster_dict[len(cluster_dict)] = [added_line]
-
-
+   
+   
     sys.stdout = open(console, 'w')
     for i in cluster_dict:
         print i
@@ -160,8 +170,8 @@ def main():
     #list1 = ['a', 'b', 'c', 'd']
     #list2 = ['a', 'b', 'c', 'd', 'e']   
     #print levenshteinVec(list1, list2) 
-    #str1 = "SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: completed 2 of 2 procedures (100 percent)"   
-    #print re.split(delimiter, str1)         
+    #str1 = "SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: com<>pleted 2 of 2 procedures (100 percent)"   
+    #print replaceNumByWildcard(re.split(delimiter, str1))         
     #string1 = 'adqe!f-'
     #string2 = 'adqef-'
     #print levenshteinVec(string1, string2)
@@ -169,6 +179,8 @@ def main():
     #with open(logfile) as f:
     #    print str(f.readline()).endswith('\n')
     #print bool({})
+    
+    #print re.search(r'0x[\da-fA-F]', "0x0e") is not None
     # ------------------------------ For debugging ------------------------------ #
     
     print "Stop..."
