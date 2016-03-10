@@ -99,7 +99,7 @@ def main():
                 line = line[16:]
                 edit_dis = levenshteinVec(curr_line, line)
                 if edit_dis < 0.1:
-                    o.write(str(edit_dis) + '  ' + line)
+                    o.write(str(edit_dis) + '  ' + line) 
                 
                 
 
