@@ -14,10 +14,11 @@ import numpy as np
 import timeit
 import re
 import time
+import editdistance
 
 
 
-logfile = "/home/cliu/Documents/SC-1/temp"
+logfile = "/home/cliu/Documents/SC-1/messages"
 outfile = "/home/cliu/Documents/SC-1/output"
 console = "/home/cliu/Documents/SC-1/console"
 
@@ -99,7 +100,8 @@ def minDistance(added_line, cluster_dict):
     for cluster_num in cluster_dict:
         cluster = cluster_dict[cluster_num]
         cluster_line_tokens = replaceNumByWildcard(re.split(delimiter, cluster[0][ignored_chars:]))
-        distance.append(levenshteinVec(cluster_line_tokens, added_line_tokens))
+        dis_ratio = (float(editdistance.eval(cluster_line_tokens, added_line_tokens)) / float(max(len(added_line_tokens), len(cluster_line_tokens))))
+        distance.append(dis_ratio)
     #print distance
     min_index = np.argmin(distance)
     min_dis = distance[min_index]
@@ -119,7 +121,7 @@ def main():
  
     cluster_dict = {}
     num = 0
-    
+     
     with open(logfile) as f:
         with open(outfile, 'w') as o:
             added_line = f.readline()
@@ -135,7 +137,7 @@ def main():
                     if not added_line.endswith('\n'):
                         added_line = added_line + '\n'
                     #o.write(added_line)
-                        
+                         
                     if not cluster_dict:
                         cluster_dict[0] = [added_line]
                     else:
@@ -145,9 +147,9 @@ def main():
                             cluster_dict[min_index].append(added_line)
                         else:
                             cluster_dict[len(cluster_dict)] = [added_line]
-   
+    
                     added_line = line
-                       
+                        
             # add the last line        
             #o.write(added_line)
             #cluster_dict[len(cluster_dict)] = [added_line]
@@ -156,8 +158,8 @@ def main():
                 cluster_dict[min_index].append(added_line)
             else:
                 cluster_dict[len(cluster_dict)] = [added_line]
-   
-   
+    
+    
     sys.stdout = open(console, 'w')
     for i in cluster_dict:
         print i
@@ -168,7 +170,7 @@ def main():
     
     # ------------------------------ For debugging ------------------------------ #
     #list1 = ['a', 'b', 'c', 'd']
-    #list2 = ['a', 'b', 'c', 'd', 'e']   
+    #list2 = ['a', 'b', 'd', 'c', 'e']   
     #print levenshteinVec(list1, list2) 
     #str1 = "SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: com<>pleted 2 of 2 procedures (100 percent)"   
     #print replaceNumByWildcard(re.split(delimiter, str1))         
@@ -181,6 +183,9 @@ def main():
     #print bool({})
     
     #print re.search(r'0x[\da-fA-F]', "0x0e") is not None
+    
+    #print editdistance.eval(list1, list2)
+    
     # ------------------------------ For debugging ------------------------------ #
     
     print "Stop..."
@@ -193,7 +198,7 @@ def main():
 if __name__ == "__main__":
     #sys.stdout = open(console, 'w')
     main()
-    #print(timeit.timeit("main()", number=10 ,setup="from __main__ import main"))          
+    #print(timeit.timeit("main()", number=100 ,setup="from __main__ import main"))          
             
             
 
