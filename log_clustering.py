@@ -1,12 +1,18 @@
 '''
 This program is used to cluster logs based on their similarity. 
-
 The similarity between two logs is measured based the editing distance between. 
-
 The basic unit of a log is not a character but a token. 
 
-Wikibooks: Algorithm Implementation/Strings/Levenshtein distance - Python Code:
+[1] Wikibooks: Algorithm Implementation/Strings/Levenshtein distance - Python Code:
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#Python
+
+[2] Fast implementation of the edit distance(Levenshtein distance)
+https://github.com/aflc/editdistance
+
+The method 'levenshteinVec(source, target)' implemented here is very slower than the package 'editdistance',
+Since the source code of 'editdistance' is written in C++
+However, if we would like to modify the levenshtein algorithm by adding weights to different token classes
+'levenshteinVec(source, target)' is easier to change the code
 '''
 
 import sys
@@ -116,6 +122,9 @@ def replaceNumByWildcard(tokens):
             tokens[i] = '*'   
     return tokens
 
+            
+            
+            
             
 def main():
  
