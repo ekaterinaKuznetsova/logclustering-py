@@ -166,7 +166,7 @@ def main():
         for item in cluster_dict[i]:
             print item    
         
-     
+    
     
     # ------------------------------ For debugging ------------------------------ #
     #list1 = ['a', 'b', 'c', 'd']
