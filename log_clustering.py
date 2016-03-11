@@ -18,7 +18,7 @@ import editdistance
 
 
 
-logfile = "/home/cliu/Documents/SC-1/messages"
+logfile = "/home/cliu/Documents/SC-1/messages.1"
 outfile = "/home/cliu/Documents/SC-1/output"
 console = "/home/cliu/Documents/SC-1/console"
 
@@ -123,32 +123,32 @@ def main():
     num = 0
      
     with open(logfile) as f:
-        with open(outfile, 'w') as o:
+        #with open(outfile, 'w') as o:
+        added_line = f.readline()
+        while not isTimeStamp(added_line[:16]):
             added_line = f.readline()
-            while not isTimeStamp(added_line[:16]):
-                added_line = f.readline()
-            for line in f:
-                print num
-                num = num +1
-                if not isTimeStamp(line[:16]):
-                    added_line = added_line.rstrip() + ' ' + line.rstrip()
-                    continue
+        for line in f:
+            #print num
+            num = num +1
+            if not isTimeStamp(line[:16]):
+                added_line = added_line.rstrip() + ' ' + line.rstrip()
+                continue
+            else:
+                if not added_line.endswith('\n'):
+                    added_line = added_line + '\n'
+                #o.write(added_line)
+                     
+                if not cluster_dict:
+                    cluster_dict[0] = [added_line]
                 else:
-                    if not added_line.endswith('\n'):
-                        added_line = added_line + '\n'
-                    #o.write(added_line)
-                         
-                    if not cluster_dict:
-                        cluster_dict[0] = [added_line]
+                    #cluster_dict[len(cluster_dict)] = [added_line]
+                    min_dis, min_index = minDistance(added_line, cluster_dict)
+                    if min_dis < distance_threshold:
+                        cluster_dict[min_index].append(added_line)
                     else:
-                        #cluster_dict[len(cluster_dict)] = [added_line]
-                        min_dis, min_index = minDistance(added_line, cluster_dict)
-                        if min_dis < distance_threshold:
-                            cluster_dict[min_index].append(added_line)
-                        else:
-                            cluster_dict[len(cluster_dict)] = [added_line]
-    
-                    added_line = line
+                        cluster_dict[len(cluster_dict)] = [added_line]
+
+                added_line = line
                         
             # add the last line        
             #o.write(added_line)
