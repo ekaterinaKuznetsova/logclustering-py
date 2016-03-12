@@ -26,7 +26,7 @@ import editdistance
 
 
 
-logfile = "/home/cliu/Documents/SC-1/messages.1"
+logfile = "/home/cliu/Documents/SC-1/message"
 outfile = "/home/cliu/Documents/SC-1/output"
 console = "/home/cliu/Documents/SC-1/console"
 
@@ -126,43 +126,96 @@ def replaceNumByWildcard(tokens):
 
      
      
+
+def partitionByCommand():
+    command_cluster = {}
+    pattern = re.compile(r'(\w+)([\[:])(.*)') 
+    
+    with open(logfile) as f:
+        with open(outfile, 'w') as o:
+            added_line = f.readline()
+            while not isTimeStamp(added_line[:16]):
+                added_line = f.readline()
+            for line in f:
+                if not isTimeStamp(line[:16]):
+                    added_line = added_line.rstrip() + ' | ' + line
+                    continue
+                else:        
+                    # Do something for each log
+                    #o.write(added_line)                   
+                    #o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
+                    command = (re.match(pattern, added_line[21:])).group(1)
+                    if not command_cluster.has_key(command):
+                        command_cluster[command] = [added_line]
+                    else:
+                        command_cluster[command].append(added_line)
+        
+                    added_line = line
+                            
+            # Add the last line        
+            # Do something for the last log
+            #o.write(added_line)
+            #o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
+            command = (re.match(pattern, added_line[21:])).group(1)
+            if not command_cluster.has_key(command):
+                command_cluster[command] = [added_line]
+            else:
+                command_cluster[command].append(added_line)
+    
+    
+    with open(console, 'w') as c:
+        for i in command_cluster:
+            c.write(str(i) + '\n')  
+            for item in command_cluster[i]:
+                c.write(item)  
+                
+    return command_cluster
+     
+     
+def logClusteringWithPrePartition():
+    command_cluster = partitionByCommand()
+    
+    with open(console, 'w') as c:
+        for i in command_cluster:
+            c.write(str(i) + '\n')  
+            for item in command_cluster[i]:
+                c.write(item)    
+    
+    
+     
+     
      
 def logClustering():
 
     cluster_dict = {}
-    num = 0
      
     with open(logfile) as f:
-        #with open(outfile, 'w') as o:
-        added_line = f.readline()
-        while not isTimeStamp(added_line[:16]):
+        with open(outfile, 'w') as o:
             added_line = f.readline()
-        for line in f:
-            #print num
-            num = num +1
-            if not isTimeStamp(line[:16]):
-                added_line = added_line.rstrip() + ' ' + line.rstrip()
-                continue
-            else:
-                if not added_line.endswith('\n'):
-                    added_line = added_line + '\n'
-                #o.write(added_line)
-                     
-                if not cluster_dict:
-                    cluster_dict[0] = [added_line]
-                else:
-                    #cluster_dict[len(cluster_dict)] = [added_line]
-                    min_dis, min_index = minDistance(added_line, cluster_dict)
-                    if min_dis < distance_threshold:
-                        cluster_dict[min_index].append(added_line)
+            while not isTimeStamp(added_line[:16]):
+                added_line = f.readline()
+            for line in f:
+                if not isTimeStamp(line[:16]):
+                    added_line = added_line.rstrip() + ' | ' + line
+                    continue
+                else:        
+                    # Do something for each log
+                    #o.write(added_line)                   
+                    if not cluster_dict:
+                        cluster_dict[0] = [added_line]
                     else:
-                        cluster_dict[len(cluster_dict)] = [added_line]
-
-                added_line = line
-                        
-            # add the last line        
+                        #cluster_dict[len(cluster_dict)] = [added_line]
+                        min_dis, min_index = minDistance(added_line, cluster_dict)
+                        if min_dis < distance_threshold:
+                            cluster_dict[min_index].append(added_line)
+                        else:
+                            cluster_dict[len(cluster_dict)] = [added_line]
+        
+                    added_line = line
+                            
+            # Add the last line        
+            # Do something for the last log
             #o.write(added_line)
-            #cluster_dict[len(cluster_dict)] = [added_line]
             min_dis, min_index = minDistance(added_line, cluster_dict)
             if min_dis < distance_threshold:
                 cluster_dict[min_index].append(added_line)
@@ -171,11 +224,14 @@ def logClustering():
     
     
     #sys.stdout = open(console, 'w')
-    with open(outfile, 'w') as o:
+    with open(console, 'w') as c:
         for i in cluster_dict:
-            print i
+            c.write(str(i) + '\n')  
             for item in cluster_dict[i]:
-                o.write(item)    
+                c.write(item)    
+     
+     
+     
      
      
             
@@ -185,7 +241,8 @@ def logClustering():
 def main():
  
     start_time = time.time()
-    logClustering()
+    #logClustering()
+    partitionByCommand()
     stop_time = time.time()
     
     print "--- %s seconds ---" % (stop_time - start_time)
