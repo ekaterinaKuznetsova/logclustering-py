@@ -14,7 +14,7 @@ Since the source code of 'editdistance' is written in C++
 However, if we would like to modify the levenshtein algorithm by adding weights to different token classes
 'levenshteinVec(source, target)' is easier to change the code
 
-TODO: pre-partition. output sequence. 
+TODO: output sequence. 
 '''
 
 import sys
@@ -26,7 +26,7 @@ import editdistance
 
 
 
-logfile = "/home/cliu/Documents/SC-1/message"
+logfile = "/home/cliu/Documents/SC-1/messages"
 outfile = "/home/cliu/Documents/SC-1/output"
 console = "/home/cliu/Documents/SC-1/console"
 
@@ -34,7 +34,7 @@ console = "/home/cliu/Documents/SC-1/console"
 delimiter = r'[ ,:()\[\]=|/\\{}\'\"]+' # ,:()[]=|\/{}'"          no <>
 
 # two logs with editing distance less than distance_threshold are considered to be similar
-distance_threshold = 0.4
+distance_threshold = 0.3
 
 # how many chars are ignored from the beginning of a log (because of the time-stamp, server-name, etc.)
 ignored_chars = 21
@@ -129,7 +129,10 @@ def replaceNumByWildcard(tokens):
 
 def partitionByCommand():
     command_cluster = {}
-    pattern = re.compile(r'(\w+)([\[:])(.*)') 
+    # pattern for extracting the command. 
+    # the command token could contain English letters, '-', '_' and '.'
+    # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign, mmas_syslog_control_setup.sh, etc.
+    pattern = re.compile(r'([\w\-\_\.]+)([\[:])(.*)') 
     
     with open(logfile) as f:
         with open(outfile, 'w') as o:
@@ -144,7 +147,9 @@ def partitionByCommand():
                     # Do something for each log
                     #o.write(added_line)                   
                     #o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
-                    command = (re.match(pattern, added_line[21:])).group(1)
+                    m = re.match(pattern, added_line[21:])
+                    command = m.group(1)
+                    
                     if not command_cluster.has_key(command):
                         command_cluster[command] = [added_line]
                     else:
@@ -156,7 +161,8 @@ def partitionByCommand():
             # Do something for the last log
             #o.write(added_line)
             #o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
-            command = (re.match(pattern, added_line[21:])).group(1)
+            m = re.match(pattern, added_line[21:])
+            command = m.group(1)
             if not command_cluster.has_key(command):
                 command_cluster[command] = [added_line]
             else:
@@ -174,14 +180,25 @@ def partitionByCommand():
      
 def logClusteringWithPrePartition():
     command_cluster = partitionByCommand()
+    cluster_dict = {}
     
     with open(console, 'w') as c:
-        for i in command_cluster:
+        for i in command_cluster: 
+            for line in command_cluster[i]:
+                if not cluster_dict:
+                    cluster_dict[0] = [line]
+                else:
+                    min_dis, min_index = minDistance(line, cluster_dict)
+                    if min_dis < distance_threshold:
+                        cluster_dict[min_index].append(line)
+                    else:
+                        cluster_dict[len(cluster_dict)] = [line]
+    
+    with open(console, 'w') as c:
+        for i in cluster_dict:
             c.write(str(i) + '\n')  
-            for item in command_cluster[i]:
-                c.write(item)    
-    
-    
+            for item in cluster_dict[i]:
+                c.write(item) 
      
      
      
@@ -242,7 +259,8 @@ def main():
  
     start_time = time.time()
     #logClustering()
-    partitionByCommand()
+    #partitionByCommand()
+    logClusteringWithPrePartition()
     stop_time = time.time()
     
     print "--- %s seconds ---" % (stop_time - start_time)
