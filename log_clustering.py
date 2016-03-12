@@ -13,6 +13,8 @@ The method 'levenshteinVec(source, target)' implemented here is very slower than
 Since the source code of 'editdistance' is written in C++
 However, if we would like to modify the levenshtein algorithm by adding weights to different token classes
 'levenshteinVec(source, target)' is easier to change the code
+
+TODO: pre-partition. output sequence. 
 '''
 
 import sys
@@ -122,12 +124,11 @@ def replaceNumByWildcard(tokens):
             tokens[i] = '*'   
     return tokens
 
-            
-            
-            
-            
-def main():
- 
+     
+     
+     
+def logClustering():
+
     cluster_dict = {}
     num = 0
      
@@ -169,12 +170,25 @@ def main():
                 cluster_dict[len(cluster_dict)] = [added_line]
     
     
-    sys.stdout = open(console, 'w')
-    for i in cluster_dict:
-        print i
-        for item in cluster_dict[i]:
-            print item    
-        
+    #sys.stdout = open(console, 'w')
+    with open(outfile, 'w') as o:
+        for i in cluster_dict:
+            print i
+            for item in cluster_dict[i]:
+                o.write(item)    
+     
+     
+            
+            
+            
+            
+def main():
+ 
+    start_time = time.time()
+    logClustering()
+    stop_time = time.time()
+    
+    print "--- %s seconds ---" % (stop_time - start_time)
     
     
     # ------------------------------ For debugging ------------------------------ #
