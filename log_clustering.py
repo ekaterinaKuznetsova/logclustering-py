@@ -100,14 +100,13 @@ class LogTemplateExtractor(object):
             # Substitution or matching:
             # Target and source items are aligned, and either
             # are different (cost of 1), or are the same (cost of 0).
-            current_row[1:] = np.minimum(
-                    current_row[1:],
-                    np.add(previous_row[:-1], target != s))
+            current_row[1:] = np.minimum(current_row[1:],
+                                         np.add(previous_row[:-1],
+                                         target != s))
 
             # Deletion (target grows shorter than source):
-            current_row[1:] = np.minimum(
-                    current_row[1:],
-                    current_row[0:-1] + 1)
+            current_row[1:] = np.minimum(current_row[1:],
+                                         current_row[0:-1] + 1)
 
             previous_row = current_row
 
@@ -150,9 +149,10 @@ class LogTemplateExtractor(object):
         """
         Replace number tokens and hex (0x...) tokens by wildcard symbol * .
         """
+        hex_pattern = r'0x[\da-fA-F]'
         for i in range(0, len(tokens)):
             if (tokens[i].isdigit() or
-                re.search(r'0x[\da-fA-F]', tokens[i]) is not None):
+                re.search(hex_pattern, tokens[i]) is not None):
                 tokens[i] = '*'
         return tokens
 
@@ -183,7 +183,7 @@ class LogTemplateExtractor(object):
                     else:
                         # Do something for each log
                         # o.write(added_line)
-                        # o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
+                        # o.write((re.match(pattern, added_line[21:])).group(1))
                         m = re.match(pattern, added_line[21:])
                         command = m.group(1)
 
@@ -197,7 +197,7 @@ class LogTemplateExtractor(object):
                 # Add the last line
                 # Do something for the last log
                 # o.write(added_line)
-                # o.write((re.match(pattern, added_line[21:])).group(1) + '\n')
+                # o.write((re.match(pattern, added_line[21:])).group(1))
                 m = re.match(pattern, added_line[21:])
                 command = m.group(1)
                 if not command_cluster.has_key(command):
