@@ -125,7 +125,6 @@ def replaceNumByWildcard(tokens):
     return tokens
 
      
-     
 
 def partitionByCommand():
     command_cluster = {}
@@ -178,6 +177,7 @@ def partitionByCommand():
     return command_cluster
      
      
+     
 def logClusteringWithPrePartition():
     command_cluster = partitionByCommand()
     cluster_dict = {}
@@ -199,6 +199,8 @@ def logClusteringWithPrePartition():
             c.write(str(i) + '\n')  
             for item in cluster_dict[i]:
                 c.write(item) 
+                
+    return cluster_dict
      
      
      
@@ -247,7 +249,7 @@ def logClustering():
             for item in cluster_dict[i]:
                 c.write(item)    
      
-     
+    return cluster_dict
      
      
      
@@ -299,29 +301,6 @@ if __name__ == "__main__":
     #print(timeit.timeit("main()", number=100 ,setup="from __main__ import main"))          
             
             
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
