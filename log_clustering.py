@@ -119,6 +119,9 @@ def minDistance(added_line, cluster_dict):
 
 
 def replaceNumByWildcard(tokens):
+    '''
+    Replace number tokens and hex (starts with 0x...) tokens by wildcard symbol *
+    '''
     for i in range(0, len(tokens)):
         if tokens[i].isdigit() or re.search(r'0x[\da-fA-F]', tokens[i]) is not None:
             tokens[i] = '*'   
@@ -127,6 +130,11 @@ def replaceNumByWildcard(tokens):
      
 
 def partitionByCommand():
+    '''
+    First partition the original logs based on their command type, for two reasons:
+    1. Dramatically reduce the computational time, especially plenty of time spent on levenshtein distance 
+    2. Naturally, we should cluster logs starting with different command names into different clusters
+    '''
     command_cluster = {}
     # pattern for extracting the command. 
     # the command token could contain English letters, '-', '_' and '.'
@@ -168,17 +176,20 @@ def partitionByCommand():
                 command_cluster[command].append(added_line)
     
     
-    with open(console, 'w') as c:
-        for i in command_cluster:
-            c.write(str(i) + '\n')  
-            for item in command_cluster[i]:
-                c.write(item)  
+#     with open(console, 'w') as c:
+#         for i in command_cluster:
+#             c.write(str(i) + '\n')  
+#             for item in command_cluster[i]:
+#                 c.write(item)  
                 
     return command_cluster
      
      
      
 def logClusteringWithPrePartition():
+    '''
+    Similarity checks and further clustering after partitioning based on command
+    '''
     command_cluster = partitionByCommand()
     cluster_dict = {}
     
@@ -194,17 +205,21 @@ def logClusteringWithPrePartition():
                     else:
                         cluster_dict[len(cluster_dict)] = [line]
     
-    with open(console, 'w') as c:
-        for i in cluster_dict:
-            c.write(str(i) + '\n')  
-            for item in cluster_dict[i]:
-                c.write(item) 
+#     with open(console, 'w') as c:
+#         for i in cluster_dict:
+#             c.write(str(i) + '\n')  
+#             for item in cluster_dict[i]:
+#                 c.write(item) 
                 
     return cluster_dict
      
      
      
 def logClustering():
+    '''
+    Log clustering without pre-partitioning based on command. 
+    This is much slower than logClusteringWithPrePartition()
+    '''
 
     cluster_dict = {}
      
@@ -243,16 +258,29 @@ def logClustering():
     
     
     #sys.stdout = open(console, 'w')
-    with open(console, 'w') as c:
-        for i in cluster_dict:
-            c.write(str(i) + '\n')  
-            for item in cluster_dict[i]:
-                c.write(item)    
+#     with open(console, 'w') as c:
+#         for i in cluster_dict:
+#             c.write(str(i) + '\n')  
+#             for item in cluster_dict[i]:
+#                 c.write(item)    
      
     return cluster_dict
      
      
      
+def discoverTemplate():
+    '''
+    Abstract the template representation from each of the clusters
+    '''
+    cluster_dict = logClusteringWithPrePartition()
+    
+    with open(console, 'w') as c:
+        for i in cluster_dict:
+            c.write(str(i) + '\n')  
+            for item in cluster_dict[i]:
+                c.write(item) 
+    # TODO
+    
             
             
             
