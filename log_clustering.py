@@ -19,7 +19,6 @@ TODO: output sequence.
 
 import sys
 import numpy as np
-import timeit
 import re
 import time
 import editdistance
@@ -342,7 +341,6 @@ def main():
 if __name__ == "__main__":
     #sys.stdout = open(console, 'w')
     main()
-    #print(timeit.timeit("main()", number=100 ,setup="from __main__ import main"))          
             
             
 
