@@ -159,8 +159,8 @@ class LogTemplateExtractor(object):
     def partitionByCommand(self):
         """
         First partition the original logs based on their command type because:
-        1. Dramatically reduce the computational time, especially plenty of time
-           spent on levenshtein distance.
+        1. Dramatically reduce the computational time, especially plenty of
+           time spent on levenshtein distance.
         2. Naturally, we should cluster logs starting with different command
            names into different clusters.
         """
@@ -204,7 +204,6 @@ class LogTemplateExtractor(object):
                     command_cluster[command] = [added_line]
                 else:
                     command_cluster[command].append(added_line)
-
 
         # with open(self.console, 'w') as c:
         #     for i in command_cluster:
@@ -283,7 +282,6 @@ class LogTemplateExtractor(object):
                     cluster_dict[min_index].append(added_line)
                 else:
                     cluster_dict[len(cluster_dict)] = [added_line]
-
 
         # sys.stdout = open(self.console, 'w')
         # with open(self.console, 'w') as c:
