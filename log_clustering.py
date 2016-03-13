@@ -6,7 +6,7 @@ The basic unit of a log is not a character but a token.
 [1] Wikibooks: Algorithm Implementation/Strings/Levenshtein distance - Python:
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#Python
 
-[2] Fast implementation of the edit distance(Levenshtein distance)
+[2] Fast implementation of the edit distance (Levenshtein distance) - C++:
 https://github.com/aflc/editdistance
 
 The method 'levenshteinNumPy(source, target)' implemented here is very slower
