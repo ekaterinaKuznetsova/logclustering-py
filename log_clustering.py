@@ -9,11 +9,11 @@ https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_dista
 [2] Fast implementation of the edit distance(Levenshtein distance)
 https://github.com/aflc/editdistance
 
-The method 'levenshteinVec(source, target)' implemented here is very slower than
-the package 'editdistance', since the source code of 'editdistance' is written
-in C++. However, if we would like to modify the levenshtein algorithm by adding
-weights to different token classes 'levenshteinVec(source, target)' is easier to
-change the code
+The method 'levenshteinNumPy(source, target)' implemented here is very slower
+than the package 'editdistance', since the source code of 'editdistance' is
+written in C++. However, if we would like to modify the levenshtein algorithm
+by adding weights to different token classes 'levenshteinNumPy(source, target)'
+is easier to change the code
 """
 
 
@@ -71,14 +71,14 @@ class LogTemplateExtractor(object):
         """
         self.ignored_chars = ignored_chars
 
-    def levenshteinVec(self, source, target):
+    def levenshteinNumPy(self, source, target):
         """
-        Dynamic Programming algorithm, with the added optimization that only the
-        last two rows of the dynamic programming matrix are needed for the
-        computation. Vectorized version using NumPy.
+        Dynamic Programming algorithm, with the added optimization that only
+        the last two rows of the dynamic programming matrix are needed for
+        the computation. Vectorized version using NumPy.
         """
         if len(source) < len(target):
-            return self.levenshteinVec(target, source)
+            return self.levenshteinNumPy(target, source)
 
         # So now we have len(source) >= len(target).
         if len(target) == 0:
@@ -160,9 +160,9 @@ class LogTemplateExtractor(object):
         """
         First partition the original logs based on their command type because:
         1. Dramatically reduce the computational time, especially plenty of time
-         spent on levenshtein distance.
+           spent on levenshtein distance.
         2. Naturally, we should cluster logs starting with different command
-         names into different clusters.
+           names into different clusters.
         """
         command_cluster = {}
         # pattern for extracting the command.
@@ -326,13 +326,13 @@ def main():
     # ---------------------------- For debugging ---------------------------- #
     # list1 = ['a', 'b', 'c', 'd']
     # list2 = ['a', 'b', 'd', 'c', 'e']
-    # print levenshteinVec(list1, list2)
+    # print levenshteinNumPy(list1, list2)
     # str1 = ("SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: "
     #         "com<>pleted 2 of 2 procedures (100 percent)")
     # print replaceNumByWildcard(re.split(delimiter, str1))
     # string1 = 'adqe!f-'
     # string2 = 'adqef-'
-    # print levenshteinVec(string1, string2)
+    # print levenshteinNumPy(string1, string2)
     # print isTimeStamp("Feb 17 04:16:54 a"[:16])
     # with open(logfile) as f:
     #    print str(f.readline()).endswith('\n')
