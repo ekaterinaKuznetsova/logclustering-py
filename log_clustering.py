@@ -20,7 +20,7 @@ is easier to change the code
 import editdistance
 import numpy as np
 import re
-import sys
+# import sys
 import time
 
 
@@ -44,20 +44,20 @@ class LogTemplateExtractor(object):
         # (because of the time-stamp, server-name, etc.)
         self.ignored_chars = 21
 
-    def setLogFile(self, logfile):
+    def set_logfile(self, logfile):
         """
         Set the source log file (name/path) which is going to be analyzed.
         """
         self.logfile = logfile
 
-    def setDelimiter(self, delimiter):
+    def set_delimiter(self, delimiter):
         """
         Set the delimiters (in regular expression)
         for dividing one log into tokens.
         """
         self.delimiter = delimiter
 
-    def setDistanceThreshold(self, distance_threshold):
+    def set_distance_threshold(self, distance_threshold):
         """
         Set the distance threshold 0 ~ 1 used for creating new cluster.
         The less the threshold is, the more similar two logs have to be
@@ -65,20 +65,20 @@ class LogTemplateExtractor(object):
         """
         self.logfile = distance_threshold
 
-    def setIgnoredChars(self, ignored_chars):
+    def set_ignored_chars(self, ignored_chars):
         """
         Set the ignored chars at the beginning of each log.
         """
         self.ignored_chars = ignored_chars
 
-    def levenshteinNumPy(self, source, target):
+    def levenshtein_numpy(self, source, target):
         """
         Dynamic Programming algorithm, with the added optimization that only
         the last two rows of the dynamic programming matrix are needed for
         the computation. Vectorized version using NumPy.
         """
         if len(source) < len(target):
-            return self.levenshteinNumPy(target, source)
+            return self.levenshtein_numpy(target, source)
 
         # So now we have len(source) >= len(target).
         if len(target) == 0:
@@ -93,7 +93,7 @@ class LogTemplateExtractor(object):
         # added optimization that we only need the last two rows
         # of the matrix.
         previous_row = np.arange(target.size + 1)
-        for s in source:
+        for one_source in source:
             # Insertion (target grows longer than source):
             current_row = previous_row + 1
 
@@ -102,7 +102,7 @@ class LogTemplateExtractor(object):
             # are different (cost of 1), or are the same (cost of 0).
             current_row[1:] = np.minimum(current_row[1:],
                                          np.add(previous_row[:-1],
-                                         target != s))
+                                                target != one_source))
 
             # Deletion (target grows shorter than source):
             current_row[1:] = np.minimum(current_row[1:],
@@ -112,7 +112,8 @@ class LogTemplateExtractor(object):
 
         return float(previous_row[-1]) / float(max(len(source), len(target)))
 
-    def isTimeStamp(self, input_str):
+    @classmethod
+    def is_timestamp(cls, input_str):
         """
         Check whether input str is with time format like: Feb 11 05:22:51 .
         """
@@ -122,17 +123,17 @@ class LogTemplateExtractor(object):
         except ValueError:
             return False
 
-    def minDistance(self, added_line, cluster_dict):
+    def min_distance(self, added_line, cluster_dict):
         """
         Calculate the minimal distance between the log and all the clusters.
         Return the minimal distance and its index.
         """
         distance = []
-        added_line_tokens = self.replaceNumByWildcard(
+        added_line_tokens = self.replace_num_wildcard(
             re.split(self.delimiter, added_line[self.ignored_chars:]))
         for cluster_num in cluster_dict:
             cluster = cluster_dict[cluster_num]
-            cluster_line_tokens = self.replaceNumByWildcard(
+            cluster_line_tokens = self.replace_num_wildcard(
                 re.split(self.delimiter, cluster[0][self.ignored_chars:]))
             dis_ratio = (float(editdistance.eval(cluster_line_tokens,
                                                  added_line_tokens)) /
@@ -145,18 +146,19 @@ class LogTemplateExtractor(object):
 
         return min_dis, min_index
 
-    def replaceNumByWildcard(self, tokens):
+    @classmethod
+    def replace_num_wildcard(cls, tokens):
         """
         Replace number tokens and hex (0x...) tokens by wildcard symbol * .
         """
         hex_pattern = r'0x[\da-fA-F]'
         for i in range(0, len(tokens)):
             if (tokens[i].isdigit() or
-                re.search(hex_pattern, tokens[i]) is not None):
+                    re.search(hex_pattern, tokens[i]) is not None):
                 tokens[i] = '*'
         return tokens
 
-    def partitionByCommand(self):
+    def partition_by_command(self):
         """
         First partition the original logs based on their command type because:
         1. Dramatically reduce the computational time, especially plenty of
@@ -171,77 +173,57 @@ class LogTemplateExtractor(object):
         # mmas_syslog_control_setup.sh, etc.
         pattern = re.compile(r'([\w\-\_\.]+)([\[:])(.*)')
 
-        with open(self.logfile) as f:
-            with open(self.outfile, 'w') as o:
-                added_line = f.readline()
-                while not self.isTimeStamp(added_line[:16]):
-                    added_line = f.readline()
-                for line in f:
-                    if not self.isTimeStamp(line[:16]):
-                        added_line = added_line.rstrip() + ' | ' + line
-                        continue
-                    else:
-                        # Do something for each log
-                        # o.write(added_line)
-                        # o.write((re.match(pattern, added_line[21:])).group(1))
-                        m = re.match(pattern, added_line[21:])
-                        command = m.group(1)
-
-                        if not command_cluster.has_key(command):
-                            command_cluster[command] = [added_line]
-                        else:
-                            command_cluster[command].append(added_line)
-
-                        added_line = line
-
-                # Add the last line
-                # Do something for the last log
-                # o.write(added_line)
-                # o.write((re.match(pattern, added_line[21:])).group(1))
-                m = re.match(pattern, added_line[21:])
-                command = m.group(1)
-                if not command_cluster.has_key(command):
-                    command_cluster[command] = [added_line]
+        with open(self.logfile) as in_file:
+            added_line = in_file.readline()
+            while not self.is_timestamp(added_line[:16]):
+                added_line = in_file.readline()
+            for line in in_file:
+                if not self.is_timestamp(line[:16]):
+                    added_line = added_line.rstrip() + ' | ' + line
+                    continue
                 else:
-                    command_cluster[command].append(added_line)
+                    # Do something for each log
+                    command = re.match(pattern, added_line[21:]).group(1)
 
-        # with open(self.console, 'w') as c:
-        #     for i in command_cluster:
-        #         c.write(str(i) + '\n')
-        #         for item in command_cluster[i]:
-        #             c.write(item)
+                    if command not in command_cluster:
+                        command_cluster[command] = [added_line]
+                    else:
+                        command_cluster[command].append(added_line)
+
+                    added_line = line
+
+            # Add the last line
+            # Do something for the last log
+            command = re.match(pattern, added_line[21:]).group(1)
+            if command not in command_cluster:
+                command_cluster[command] = [added_line]
+            else:
+                command_cluster[command].append(added_line)
 
         return command_cluster
 
-    def logClusteringWithPrePartition(self):
+    def log_clustering(self):
         """
         Similarity checks and clustering after partitioning based on command.
         """
-        command_cluster = self.partitionByCommand()
+        command_cluster = self.partition_by_command()
         cluster_dict = {}
 
-        with open(self.console, 'w') as c:
-            for i in command_cluster:
-                for line in command_cluster[i]:
-                    if not cluster_dict:
-                        cluster_dict[0] = [line]
+        for i in command_cluster:
+            for line in command_cluster[i]:
+                if not cluster_dict:
+                    cluster_dict[0] = [line]
+                else:
+                    min_dis, min_index = self.min_distance(line,
+                                                           cluster_dict)
+                    if min_dis < self.distance_threshold:
+                        cluster_dict[min_index].append(line)
                     else:
-                        min_dis, min_index = self.minDistance(line,
-                                                              cluster_dict)
-                        if min_dis < self.distance_threshold:
-                            cluster_dict[min_index].append(line)
-                        else:
-                            cluster_dict[len(cluster_dict)] = [line]
-
-        # with open(self.console, 'w') as c:
-        #     for i in cluster_dict:
-        #         c.write(str(i) + '\n')
-        #         for item in cluster_dict[i]:
-        #             c.write(item)
+                        cluster_dict[len(cluster_dict)] = [line]
 
         return cluster_dict
 
-    def logClustering(self):
+    def log_clustering_slow(self):
         """
         Log clustering without pre-partitioning based on command.
         This is much slower than logClusteringWithPrePartition().
@@ -249,77 +231,68 @@ class LogTemplateExtractor(object):
 
         cluster_dict = {}
 
-        with open(self.logfile) as f:
-            with open(self.outfile, 'w') as o:
-                added_line = f.readline()
-                while not self.isTimeStamp(added_line[:16]):
-                    added_line = f.readline()
-                for line in f:
-                    if not self.isTimeStamp(line[:16]):
-                        added_line = added_line.rstrip() + ' | ' + line
-                        continue
-                    else:
-                        # Do something for each log
-                        # o.write(added_line)
-                        if not cluster_dict:
-                            cluster_dict[0] = [added_line]
-                        else:
-                            #cluster_dict[len(cluster_dict)] = [added_line]
-                            min_dis, min_index = self.minDistance(added_line,
-                                                                  cluster_dict)
-                            if min_dis < self.distance_threshold:
-                                cluster_dict[min_index].append(added_line)
-                            else:
-                                cluster_dict[len(cluster_dict)] = [added_line]
-
-                        added_line = line
-
-                # Add the last line
-                # Do something for the last log
-                # o.write(added_line)
-                min_dis, min_index = self.minDistance(added_line, cluster_dict)
-                if min_dis < self.distance_threshold:
-                    cluster_dict[min_index].append(added_line)
+        with open(self.logfile) as in_file:
+            added_line = in_file.readline()
+            while not self.is_timestamp(added_line[:16]):
+                added_line = in_file.readline()
+            for line in in_file:
+                if not self.is_timestamp(line[:16]):
+                    added_line = added_line.rstrip() + ' | ' + line
+                    continue
                 else:
-                    cluster_dict[len(cluster_dict)] = [added_line]
+                    # Do something for each log
+                    if not cluster_dict:
+                        cluster_dict[0] = [added_line]
+                    else:
+                        min_dis, min_index = self.min_distance(added_line,
+                                                               cluster_dict)
+                        if min_dis < self.distance_threshold:
+                            cluster_dict[min_index].append(added_line)
+                        else:
+                            cluster_dict[len(cluster_dict)] = [added_line]
 
-        # sys.stdout = open(self.console, 'w')
-        # with open(self.console, 'w') as c:
-        #     for i in cluster_dict:
-        #         c.write(str(i) + '\n')
-        #         for item in cluster_dict[i]:
-        #             c.write(item)
+                    added_line = line
+
+            # Add the last line
+            # Do something for the last log
+            min_dis, min_index = self.min_distance(added_line,
+                                                   cluster_dict)
+            if min_dis < self.distance_threshold:
+                cluster_dict[min_index].append(added_line)
+            else:
+                cluster_dict[len(cluster_dict)] = [added_line]
 
         return cluster_dict
 
-    def discoverTemplate(self):
+    def discover_template(self):
         """
         Abstract the template representation from each of the clusters.
         """
-        cluster_dict = self.logClusteringWithPrePartition()
+        cluster_dict = self.log_clustering()
 
-        with open(self.console, 'w') as c:
+        with open(self.console, 'w') as console_file:
             for i in cluster_dict:
-                c.write(str(i) + '\n')
+                console_file.write(str(i) + '\n')
                 for item in cluster_dict[i]:
-                    c.write(item)
+                    console_file.write(item)
         # TODO(fluency03): to be finished
 
 
-
 def main():
+    """
+    Main function
+    """
 
     logfile = "/home/cliu/Documents/SC-1/messages"
     start_time = time.time()
     extractor = LogTemplateExtractor(logfile)
-    # extractor.logClustering()
-    # extractor.partitionByCommand()
-    # extractor.logClusteringWithPrePartition()
-    extractor.discoverTemplate()
+    # extractor.log_clustering_slow()
+    # extractor.partition_by_command()
+    # extractor.log_clustering()
+    extractor.discover_template()
     stop_time = time.time()
 
     print "--- %s seconds ---" % (stop_time - start_time)
-
 
     # ---------------------------- For debugging ---------------------------- #
     # list1 = ['a', 'b', 'c', 'd']
@@ -343,7 +316,6 @@ def main():
     # ---------------------------- For debugging ---------------------------- #
 
     print "Stop..."
-
 
 
 if __name__ == "__main__":
