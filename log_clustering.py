@@ -134,7 +134,7 @@ class LogTemplateExtractor(object):
             return False
 
     @classmethod
-    def is_valid_ipv4(cls, address):
+    def is_ipv4(cls, address):
         """
         Check whether this is a velid ipv4 address
         """
@@ -152,7 +152,7 @@ class LogTemplateExtractor(object):
         return True
 
     @classmethod
-    def is_valid_ipv6(cls, address):
+    def is_ipv6(cls, address):
         """
         Check whether this is a velid ipv6 address
         """
@@ -167,7 +167,7 @@ class LogTemplateExtractor(object):
         """
         Check whether this is a valid ip address (ipv4 or ipv6)
         """
-        return self.is_valid_ipv4(address) or self.is_valid_ipv6(address)
+        return self.is_ipv4(address) or self.is_ipv6(address)
 
     def min_distance(self, added_line, cluster_dict):
         """
@@ -253,7 +253,7 @@ class LogTemplateExtractor(object):
 
         return command_cluster
 
-    def log_clustering(self):
+    def log_clustering(self, print_clusters=False):
         """
         Similarity checks and clustering after partitioning based on command.
         """
@@ -271,6 +271,13 @@ class LogTemplateExtractor(object):
                         cluster_dict[min_index].append(line)
                     else:
                         cluster_dict[len(cluster_dict)] = [line]
+
+        if print_clusters:
+            with open(self.console, 'w') as console_file:
+                for i in cluster_dict:
+                    console_file.write(str(i) + '\n')
+                    for item in cluster_dict[i]:
+                        console_file.write(item)
 
         return cluster_dict
 
@@ -315,17 +322,12 @@ class LogTemplateExtractor(object):
 
         return cluster_dict
 
-    def discover_template(self):
+    def discover_template(self, print_clusters=False, print_templates=False):
         """
         Abstract the template representation from each of the clusters.
         """
-        cluster_dict = self.log_clustering()
+        cluster_dict = self.log_clustering(print_clusters=print_clusters)
 
-        with open(self.console, 'w') as console_file:
-            for i in cluster_dict:
-                console_file.write(str(i) + '\n')
-                for item in cluster_dict[i]:
-                    console_file.write(item)
         # TODO(fluency03): to be finished
 
 
@@ -354,7 +356,7 @@ def main():
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    # extractor.discover_template()
+    # extractor.discover_template(print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
