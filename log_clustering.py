@@ -127,6 +127,10 @@ class LogTemplateExtractor(object):
 
     @classmethod
     def is_time(cls, string):
+        """
+        Check whether this is a time string.
+        It supports most of the time format, more than is_timestamp()
+        """
         try:
             timeparser(string)
             return True
@@ -177,15 +181,19 @@ class LogTemplateExtractor(object):
         distance = []
         added_line_tokens = self.replace_num_wildcard(
             re.split(self.delimiter, added_line[self.ignored_chars:]))
+
         for cluster_num in cluster_dict:
             cluster = cluster_dict[cluster_num]
             cluster_line_tokens = self.replace_num_wildcard(
                 re.split(self.delimiter, cluster[0][self.ignored_chars:]))
+
             dis_ratio = (float(editdistance.eval(cluster_line_tokens,
                                                  added_line_tokens)) /
                          float(max(len(added_line_tokens),
                                    len(cluster_line_tokens))))
+
             distance.append(dis_ratio)
+
         # print distance
         min_index = np.argmin(distance)
         min_dis = distance[min_index]
@@ -198,6 +206,7 @@ class LogTemplateExtractor(object):
         Replace number tokens and hex (0x...) tokens by wildcard symbol * .
         """
         hex_pattern = r'0x[\da-fA-F]'
+
         for i in range(0, len(tokens)):
             if (tokens[i].isdigit() or
                     re.search(hex_pattern, tokens[i]) is not None):
@@ -228,7 +237,7 @@ class LogTemplateExtractor(object):
                 current_num = current_num + 1
             for line in in_file:
                 current_num = current_num + 1
-                print current_num
+                # print current_num
                 if not self.is_timestamp(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
                     continue
@@ -327,6 +336,12 @@ class LogTemplateExtractor(object):
         Abstract the template representation from each of the clusters.
         """
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
+        template_dict = {}
+
+        for i in cluster_dict:
+            for item in cluster_dict[i]:
+                break
+                # print item
 
         # TODO(fluency03): to be finished
 
@@ -335,6 +350,16 @@ class LogTemplateExtractor(object):
 
 
 
+
+
+        if print_templates:
+            with open(self.outfile, 'w') as out_file:
+                for i in template_dict:
+                    out_file.write(str(i) + '\n')
+                    for item in template_dict[i]:
+                        out_file.write(item)
+
+        return template_dict
 
 
 
@@ -356,7 +381,7 @@ def main():
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    # extractor.discover_template(print_clusters=True, print_templates=True)
+    extractor.discover_template(print_clusters=True, print_templates=False)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
