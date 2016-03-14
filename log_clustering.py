@@ -18,9 +18,11 @@ is easier to change the code
 
 
 import editdistance
+from dateutil.parser import parse as timeparser
 import numpy as np
 import re
 # import sys
+import socket
 import time
 
 
@@ -34,11 +36,11 @@ class LogTemplateExtractor(object):
         self.console = "/home/cliu/Documents/SC-1/console"
 
         # delimiters for dividing a log into tokens
-        self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"]+'  # ,:()[]=|\/{}'"    no <>
+        self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|\/{}'"<>
 
         # two logs with editing distance less than distance_threshold
         # are considered to be similar
-        self.distance_threshold = 0.3
+        self.distance_threshold = 0.2
 
         # how many chars are ignored from the beginning of a log
         # (because of the time-stamp, server-name, etc.)
@@ -123,6 +125,50 @@ class LogTemplateExtractor(object):
         except ValueError:
             return False
 
+    @classmethod
+    def is_time(cls, string):
+        try:
+            timeparser(string)
+            return True
+        except ValueError:
+            return False
+
+    @classmethod
+    def is_valid_ipv4(cls, address):
+        """
+        Check whether this is a velid ipv4 address
+        """
+        try:
+            socket.inet_pton(socket.AF_INET, address)
+        except AttributeError:  # no inet_pton here, sorry
+            try:
+                socket.inet_aton(address)
+            except socket.error:
+                return False
+            return address.count('.') == 3
+        except socket.error:  # not a valid address
+            return False
+
+        return True
+
+    @classmethod
+    def is_valid_ipv6(cls, address):
+        """
+        Check whether this is a velid ipv6 address
+        """
+        try:
+            socket.inet_pton(socket.AF_INET6, address)
+        except socket.error:  # not a valid address
+            return False
+        return True
+
+
+    def is_ip_address(self, address):
+        """
+        Check whether this is a valid ip address (ipv4 or ipv6)
+        """
+        return self.is_valid_ipv4(address) or self.is_valid_ipv6(address)
+
     def min_distance(self, added_line, cluster_dict):
         """
         Calculate the minimal distance between the log and all the clusters.
@@ -171,13 +217,18 @@ class LogTemplateExtractor(object):
         # the command token could contain English letters, '-', '_' and '.'
         # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
         # mmas_syslog_control_setup.sh, etc.
-        pattern = re.compile(r'([\w\-\_\.]+)([\[:])(.*)')
+        pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
+        current_num = 0
 
         with open(self.logfile) as in_file:
             added_line = in_file.readline()
+            current_num = current_num + 1
             while not self.is_timestamp(added_line[:16]):
                 added_line = in_file.readline()
+                current_num = current_num + 1
             for line in in_file:
+                current_num = current_num + 1
+                print current_num
                 if not self.is_timestamp(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
                     continue
@@ -278,21 +329,35 @@ class LogTemplateExtractor(object):
         # TODO(fluency03): to be finished
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
     """
     Main function
     """
 
-    logfile = "/home/cliu/Documents/SC-1/messages"
+    print "\nStart...\n"
+
+    logfile = "/home/cliu/Documents/SC-1/messages.1"
     start_time = time.time()
     extractor = LogTemplateExtractor(logfile)
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    extractor.discover_template()
+    # extractor.discover_template()
     stop_time = time.time()
 
-    print "--- %s seconds ---" % (stop_time - start_time)
+    print "\n--- %s seconds ---\n" % (stop_time - start_time)
 
     # ---------------------------- For debugging ---------------------------- #
     # list1 = ['a', 'b', 'c', 'd']
@@ -309,13 +374,31 @@ def main():
     #    print str(f.readline()).endswith('\n')
     # print bool({})
     #
-    # print re.search(r'0x[\da-fA-F]', "0x0e") is not None
+    # print re.search(r'0x[\da-fA-F]', "0xa") is not None
     #
     # print editdistance.eval(list1, list2)
 
+    # print is_valid_ipv4("127.1.1.1")
+    # # print is_valid_ipv4_address("2001:1b70:82a0:46c::")
+    # print is_valid_ipv6("2001:1b70:82a0:46c::0")
+    # print is_valid_ipv6("fe80::1:a")
+    # print is_valid_ipv6("0000:00:")
+    # print is_valid_ipv6("fe80::213:5eff:feea:294c")
+    # print is_valid_ipv6("fe80::200:ff:feff:1")
+    #
+    #
+    # print ""
+    #
+    # print is_time("Feb 17 04:16:54.16154")
+    # print is_time("Feb 7 04:16:54")
+    # print is_time("Feb 17 4:16:54")
+    # print is_time("2016-02-16T18:23:34")
+    # print is_time("04:16:54")
+    # print is_time("1.0")
+
     # ---------------------------- For debugging ---------------------------- #
 
-    print "Stop..."
+    print "\nStop...\n"
 
 
 if __name__ == "__main__":
