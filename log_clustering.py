@@ -186,22 +186,22 @@ class LogTemplateExtractor(object):
     @classmethod
     def is_number(cls, number):
         """
-        Check whether this is a number (int, long, float, complex)
+        Check whether this is a number (int, long, float, hex)
         """
         try:
             float(number)  # for int, long, float
         except ValueError:
             try:
-                complex(number) # for complex
+                int(number, 16) # for possible hex
             except ValueError:
                 return False
 
         return True
 
     @classmethod
-    def is_hexadecimal(cls, string):
+    def contain_hex(cls, string):
         """
-        Check whether this is a hexadecimal
+        Check whether it contains hex
         """
         hex_pattern = r'0x[\da-fA-F]+'
 
@@ -218,7 +218,7 @@ class LogTemplateExtractor(object):
         for i in range(0, len(tokens)):
             token = tokens[i]
             if (self.is_number(token) or
-                    self.is_hexadecimal(token) or
+                    self.contain_hex(token) or
                     self.is_ip_address(token) or
                     self.is_pci_address(token)):
                 tokens[i] = '*'
@@ -241,7 +241,7 @@ class LogTemplateExtractor(object):
 
             dis_ratio = (float(editdistance.eval(cluster_line_tokens,
                                                  added_line_tokens)) /
-                         float(max(len(added_line_tokens),
+                         float(min(len(added_line_tokens),
                                    len(cluster_line_tokens))))
 
             distance.append(dis_ratio)
@@ -329,46 +329,46 @@ class LogTemplateExtractor(object):
 
         return cluster_dict
 
-    def log_clustering_slow(self):
-        """
-        Log clustering without pre-partitioning based on command.
-        This is much slower than logClusteringWithPrePartition().
-        """
-
-        cluster_dict = {}
-
-        with open(self.logfile) as in_file:
-            added_line = in_file.readline()
-            while not self.is_timestamp(added_line[:16]):
-                added_line = in_file.readline()
-            for line in in_file:
-                if not self.is_timestamp(line[:16]):
-                    added_line = added_line.rstrip() + ' | ' + line
-                    continue
-                else:
-                    # Do something for each log
-                    if not cluster_dict:
-                        cluster_dict[0] = [added_line]
-                    else:
-                        min_dis, min_index = self.min_distance(added_line,
-                                                               cluster_dict)
-                        if min_dis < self.distance_threshold:
-                            cluster_dict[min_index].append(added_line)
-                        else:
-                            cluster_dict[len(cluster_dict)] = [added_line]
-
-                    added_line = line
-
-            # Add the last line
-            # Do something for the last log
-            min_dis, min_index = self.min_distance(added_line,
-                                                   cluster_dict)
-            if min_dis < self.distance_threshold:
-                cluster_dict[min_index].append(added_line)
-            else:
-                cluster_dict[len(cluster_dict)] = [added_line]
-
-        return cluster_dict
+    # def log_clustering_slow(self):
+    #     """
+    #     Log clustering without pre-partitioning based on command.
+    #     This is much slower than logClusteringWithPrePartition().
+    #     """
+    #
+    #     cluster_dict = {}
+    #
+    #     with open(self.logfile) as in_file:
+    #         added_line = in_file.readline()
+    #         while not self.is_timestamp(added_line[:16]):
+    #             added_line = in_file.readline()
+    #         for line in in_file:
+    #             if not self.is_timestamp(line[:16]):
+    #                 added_line = added_line.rstrip() + ' | ' + line
+    #                 continue
+    #             else:
+    #                 # Do something for each log
+    #                 if not cluster_dict:
+    #                     cluster_dict[0] = [added_line]
+    #                 else:
+    #                     min_dis, min_index = self.min_distance(added_line,
+    #                                                            cluster_dict)
+    #                     if min_dis < self.distance_threshold:
+    #                         cluster_dict[min_index].append(added_line)
+    #                     else:
+    #                         cluster_dict[len(cluster_dict)] = [added_line]
+    #
+    #                 added_line = line
+    #
+    #         # Add the last line
+    #         # Do something for the last log
+    #         min_dis, min_index = self.min_distance(added_line,
+    #                                                cluster_dict)
+    #         if min_dis < self.distance_threshold:
+    #             cluster_dict[min_index].append(added_line)
+    #         else:
+    #             cluster_dict[len(cluster_dict)] = [added_line]
+    #
+    #     return cluster_dict
 
     def discover_template(self, print_clusters=False, print_templates=False):
         """
@@ -428,43 +428,43 @@ def main():
     # ---------------------------- For debugging ---------------------------- #
     # list1 = ['a', 'b', 'c', 'd']
     # list2 = ['a', 'b', 'd', 'c', 'e']
-    # print levenshteinNumPy(list1, list2)
+    # print extractor.levenshtein_numpy(list1, list2)
     # str1 = ("SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: "
     #         "com<>pleted 2 of 2 procedures (100 percent)")
-    # print replaceNumByWildcard(re.split(delimiter, str1))
+    # print extractor.to_wildcard(re.split(extractor.delimiter, str1))
     # string1 = 'adqe!f-'
     # string2 = 'adqef-'
-    # print levenshteinNumPy(string1, string2)
-    # print isTimeStamp("Feb 17 04:16:54 a"[:16])
+    # print extractor.levenshtein_numpy(string1, string2)
+    # print extractor.is_time("Feb 17 04:16:54 a"[:16])
     # with open(logfile) as f:
-    #    print str(f.readline()).endswith('\n')
+    #     print str(f.readline()).endswith('\n')
     # print bool({})
-    #
-    # print re.match(r'0x[\da-fA-F]+', "0x8") is not None
     #
     # print editdistance.eval(list1, list2)
 
-    # print is_valid_ipv4("127.1.1.1")
-    # # print is_valid_ipv4_address("2001:1b70:82a0:46c::")
-    # print is_valid_ipv6("2001:1b70:82a0:46c::0")
-    # print is_valid_ipv6("fe80::1:a")
-    # print is_valid_ipv6("0000:00:")
-    # print is_valid_ipv6("fe80::213:5eff:feea:294c")
-    # print is_valid_ipv6("fe80::200:ff:feff:1")
+    # print extractor.is_ipv4("127.1.1.1")
+    # # print extractor.is_ipv4("2001:1b70:82a0:46c::")
+    # print extractor.is_ipv6("fe80::1:a")
+    # print extractor.is_ipv6("2001:1b70:82a0:46c::0")
+    # print extractor.is_ipv6("0000:00:")
+    # print extractor.is_ipv6("fe80::213:5eff:feea:294c")
+    # print extractor.is_ipv6("fe80::200:ff:feff:1")
     #
     #
-    # print ""
+    # print extractor.is_number('ccb')
     #
-    # print is_time("Feb 17 04:16:54.16154")
-    # print is_time("Feb 7 04:16:54")
-    # print is_time("Feb 17 4:16:54")
-    # print is_time("2016-02-16T18:23:34")
-    # print is_time("04:16:54")
+    # print extractor.is_time("Feb 17 04:16:54.16154")
+    # print extractor.is_time("Feb 7 04:16:54")
+    # print extractor.is_time("Feb 17 4:16:54")
+    # print extractor.is_time("2016-02-16T18:23:34")
+    # print extractor.is_time("04:16:54")
     # print extractor.is_time("0000:00:")
 
     # print extractor.is_pci_address("a0000:ff:0a.1:")
 
-    # print extractor.replace_num_wildcard(['a', '0xa', '0', '0.0', '0xo', 'b', '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
+    # print extractor.to_wildcard(['a', '0xa', '0', '0.0', '0xo', 'b',
+                                #  '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
+
 
     # ---------------------------- For debugging ---------------------------- #
 
