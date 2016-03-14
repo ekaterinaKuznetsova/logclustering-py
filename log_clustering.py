@@ -19,6 +19,7 @@ is easier to change the code
 
 import editdistance
 from dateutil.parser import parse as timeparser
+# from numbers import Number
 import numpy as np
 import re
 # import sys
@@ -173,18 +174,69 @@ class LogTemplateExtractor(object):
         """
         return self.is_ipv4(address) or self.is_ipv6(address)
 
+    @classmethod
+    def is_pci_address(cls, address):
+        """
+        Check whether this is a PCI address
+        """
+        pci_addr_pattern = r'(0000):([\da-fA-F]{2}):([\da-fA-F]{2}).(\d)'
+
+        return re.search(pci_addr_pattern, address) is not None
+
+    @classmethod
+    def is_number(cls, number):
+        """
+        Check whether this is a number (int, long, float, complex)
+        """
+        try:
+            float(number)  # for int, long, float
+        except ValueError:
+            try:
+                complex(number) # for complex
+            except ValueError:
+                return False
+
+        return True
+
+    @classmethod
+    def is_hexadecimal(cls, string):
+        """
+        Check whether this is a hexadecimal
+        """
+        hex_pattern = r'0x[\da-fA-F]+'
+
+        return re.search(hex_pattern, string) is not None
+
+
+    # @classmethod
+    def to_wildcard(self, tokens):
+        """
+        Replace number tokens and hex (0x...) tokens by wildcard symbol * .
+        """
+        # hex_pattern = r'0x[\da-fA-F]+'
+
+        for i in range(0, len(tokens)):
+            token = tokens[i]
+            if (self.is_number(token) or
+                    self.is_hexadecimal(token) or
+                    self.is_ip_address(token) or
+                    self.is_pci_address(token)):
+                tokens[i] = '*'
+
+        return tokens
+
     def min_distance(self, added_line, cluster_dict):
         """
         Calculate the minimal distance between the log and all the clusters.
         Return the minimal distance and its index.
         """
         distance = []
-        added_line_tokens = self.replace_num_wildcard(
+        added_line_tokens = self.to_wildcard(
             re.split(self.delimiter, added_line[self.ignored_chars:]))
 
         for cluster_num in cluster_dict:
             cluster = cluster_dict[cluster_num]
-            cluster_line_tokens = self.replace_num_wildcard(
+            cluster_line_tokens = self.to_wildcard(
                 re.split(self.delimiter, cluster[0][self.ignored_chars:]))
 
             dis_ratio = (float(editdistance.eval(cluster_line_tokens,
@@ -199,19 +251,6 @@ class LogTemplateExtractor(object):
         min_dis = distance[min_index]
 
         return min_dis, min_index
-
-    @classmethod
-    def replace_num_wildcard(cls, tokens):
-        """
-        Replace number tokens and hex (0x...) tokens by wildcard symbol * .
-        """
-        hex_pattern = r'0x[\da-fA-F]'
-
-        for i in range(0, len(tokens)):
-            if (tokens[i].isdigit() or
-                    re.search(hex_pattern, tokens[i]) is not None):
-                tokens[i] = '*'
-        return tokens
 
     def partition_by_command(self):
         """
@@ -401,7 +440,7 @@ def main():
     #    print str(f.readline()).endswith('\n')
     # print bool({})
     #
-    # print re.search(r'0x[\da-fA-F]', "0xa") is not None
+    # print re.match(r'0x[\da-fA-F]+', "0x8") is not None
     #
     # print editdistance.eval(list1, list2)
 
@@ -421,7 +460,11 @@ def main():
     # print is_time("Feb 17 4:16:54")
     # print is_time("2016-02-16T18:23:34")
     # print is_time("04:16:54")
-    # print is_time("1.0")
+    # print extractor.is_time("0000:00:")
+
+    # print extractor.is_pci_address("a0000:ff:0a.1:")
+
+    # print extractor.replace_num_wildcard(['a', '0xa', '0', '0.0', '0xo', 'b', '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
 
     # ---------------------------- For debugging ---------------------------- #
 
