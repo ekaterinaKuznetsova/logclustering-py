@@ -115,12 +115,12 @@ class LogTemplateExtractor(object):
         return float(previous_row[-1]) / float(max(len(source), len(target)))
 
     @classmethod
-    def is_timestamp(cls, input_str):
+    def is_timestamp(cls, string):
         """
         Check whether input str is with time format like: Feb 11 05:22:51 .
         """
         try:
-            time.strptime(input_str, '%b %d %H:%M:%S ')
+            time.strptime(string, '%b %d %H:%M:%S ')
             return True
         except ValueError:
             return False
