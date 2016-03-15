@@ -2,7 +2,7 @@
 #13
 def levenshtein(s1, s2):
     '''
-    Dynamic Programming algorithm, with the added optimization that 
+    Dynamic Programming algorithm, with the added optimization that
     Only the last two rows of the dynamic programming matrix are needed for the computation
     '''
     if len(s1) < len(s2):
@@ -21,7 +21,7 @@ def levenshtein(s1, s2):
             substitutions = previous_row[j] + (c1 != c2)
             current_row.append(min(insertions, deletions, substitutions))
         previous_row = current_row
-    
+
     return (float(previous_row[-1]) / float(max(len(s1), len(s2))))
 
 #10
@@ -47,20 +47,26 @@ def levenshteinDistance(str1, str2):
     m = len(str1)
     n = len(str2)
     lensum = float(m + n)
-    d = []           
+    d = []
     for i in range(m+1):
-        d.append([i])        
-    del d[0][0]    
+        d.append([i])
+    del d[0][0]
     for j in range(n+1):
-        d[0].append(j)       
+        d[0].append(j)
     for j in range(1,n+1):
         for i in range(1,m+1):
             if str1[i-1] == str2[j-1]:
-                d[i].insert(j,d[i-1][j-1])           
+                d[i].insert(j,d[i-1][j-1])
             else:
-                minimum = min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+2)         
+                minimum = min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+2)
                 d[i].insert(j, minimum)
     ldist = d[-1][-1]
     ratio = (lensum - ldist)/lensum
     #return {'distance':ldist, 'ratio':ratio}
     return (float(ldist) / float(max(len(str1), len(str1))))
+
+
+    # if command not in command_cluster:
+    #     command_cluster[command] = [added_line]
+    # else:
+    #     command_cluster[command].append(added_line)
