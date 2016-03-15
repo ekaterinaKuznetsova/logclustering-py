@@ -37,7 +37,7 @@ class LogTemplateExtractor(object):
         self.console = "/home/cliu/Documents/SC-1/console"
 
         # delimiters for dividing a log into tokens
-        self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|\/{}'"<>
+        self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
 
         # two logs with editing distance less than distance_threshold
         # are considered to be similar
@@ -234,15 +234,23 @@ class LogTemplateExtractor(object):
         added_line_tokens = self.to_wildcard(
             re.split(self.delimiter, added_line[self.ignored_chars:]))
 
+        len_line = len(added_line_tokens)
+
         for cluster_num in cluster_dict:
             cluster = cluster_dict[cluster_num]
             cluster_line_tokens = self.to_wildcard(
                 re.split(self.delimiter, cluster[0][self.ignored_chars:]))
 
-            dis_ratio = (float(editdistance.eval(cluster_line_tokens,
-                                                 added_line_tokens)) /
-                         float(min(len(added_line_tokens),
-                                   len(cluster_line_tokens))))
+            len_cluster = len(cluster_line_tokens)
+
+            if (abs(len_cluster - len_line) / min(len_line, len_cluster) <
+                    self. distance_threshold):
+                dis_ratio = (float(editdistance.eval(cluster_line_tokens,
+                                                     added_line_tokens)) /
+                             float(min(len(added_line_tokens),
+                                       len(cluster_line_tokens))))
+            else:
+                dis_ratio = float(1)
 
             distance.append(dis_ratio)
 
@@ -279,25 +287,20 @@ class LogTemplateExtractor(object):
                 # print current_num
                 if not self.is_timestamp(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
+                    # TODO(fluency03): use join()?
                     continue
                 else:
                     # Do something for each log
                     command = re.match(pattern, added_line[21:]).group(1)
-
-                    if command not in command_cluster:
-                        command_cluster[command] = [added_line]
-                    else:
-                        command_cluster[command].append(added_line)
+                    command_cluster.setdefault(command,
+                                               [added_line]).append(added_line)
 
                     added_line = line
 
             # Add the last line
             # Do something for the last log
             command = re.match(pattern, added_line[21:]).group(1)
-            if command not in command_cluster:
-                command_cluster[command] = [added_line]
-            else:
-                command_cluster[command].append(added_line)
+            command_cluster.setdefault(command, [added_line]).append(added_line)
 
         return command_cluster
 
@@ -414,8 +417,8 @@ def main():
 
     print "\nStart...\n"
 
-    logfile = "/home/cliu/Documents/SC-1/messages.1"
     start_time = time.time()
+    logfile = "/home/cliu/Documents/SC-1/messages.1"
     extractor = LogTemplateExtractor(logfile)
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
@@ -465,6 +468,7 @@ def main():
     # print extractor.to_wildcard(['a', '0xa', '0', '0.0', '0xo', 'b',
                                 #  '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
 
+    # print 5*1.0/13
 
     # ---------------------------- For debugging ---------------------------- #
 
