@@ -9,6 +9,10 @@ https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_dista
 [2] Fast implementation of the edit distance (Levenshtein distance) - C++:
 https://github.com/aflc/editdistance
 
+[3] The dateutil module provides powerful extensions to the standard datetime
+module, available in Python.
+https://github.com/dateutil/dateutil
+
 The method 'levenshteinNumPy(source, target)' implemented here is very slower
 than the package 'editdistance', since the source code of 'editdistance' is
 written in C++. However, if we would like to modify the levenshtein algorithm
@@ -19,6 +23,7 @@ is easier to change the code
 
 import editdistance
 from dateutil.parser import parse as timeparser
+# import mlpy
 # from numbers import Number
 import numpy as np
 import re
@@ -230,7 +235,7 @@ class LogTemplateExtractor(object):
         Calculate the minimal distance between the log and all the clusters.
         Return the minimal distance and its index.
         """
-        distance = []
+        distance = {}
         added_line_tokens = self.to_wildcard(
             re.split(self.delimiter, added_line[self.ignored_chars:]))
 
@@ -252,13 +257,12 @@ class LogTemplateExtractor(object):
             else:
                 dis_ratio = float(1)
 
-            distance.append(dis_ratio)
+            distance[cluster_num] = dis_ratio
 
         # print distance
-        min_index = np.argmin(distance)
-        min_dis = distance[min_index]
+        mini = min(distance.iteritems(), key=lambda x: x[1])
 
-        return min_dis, min_index
+        return mini[1], mini[0]
 
     def partition_by_command(self):
         """
@@ -285,14 +289,20 @@ class LogTemplateExtractor(object):
             for line in in_file:
                 current_num = current_num + 1
                 # print current_num
-                if not self.is_timestamp(line[:16]):
+                if not self.is_time(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
                     # TODO(fluency03): use join()?
                     continue
                 else:
                     # Do something for each log
                     command = re.match(pattern, added_line[21:]).group(1)
-                    command_cluster.setdefault(command,
+                    line_tokens = self.to_wildcard(
+                        re.split(self.delimiter,
+                                 added_line[self.ignored_chars:]))
+
+                    length = len(line_tokens)
+
+                    command_cluster.setdefault((command, length),
                                                [added_line]).append(added_line)
 
                     added_line = line
@@ -300,7 +310,12 @@ class LogTemplateExtractor(object):
             # Add the last line
             # Do something for the last log
             command = re.match(pattern, added_line[21:]).group(1)
-            command_cluster.setdefault(command, [added_line]).append(added_line)
+            line_tokens = self.to_wildcard(
+                re.split(self.delimiter, added_line[self.ignored_chars:]))
+            length = len(line_tokens)
+
+            command_cluster.setdefault((command, length),
+                                       [added_line]).append(added_line)
 
         return command_cluster
 
@@ -312,16 +327,21 @@ class LogTemplateExtractor(object):
         cluster_dict = {}
 
         for i in command_cluster:
+            one_cluster_dict = {}
+            cluster_length = len(cluster_dict)
             for line in command_cluster[i]:
-                if not cluster_dict:
-                    cluster_dict[0] = [line]
+                if not one_cluster_dict:
+                    one_cluster_dict[cluster_length] = [line]
                 else:
                     min_dis, min_index = self.min_distance(line,
-                                                           cluster_dict)
+                                                           one_cluster_dict)
                     if min_dis < self.distance_threshold:
-                        cluster_dict[min_index].append(line)
+                        one_cluster_dict[min_index].append(line)
                     else:
-                        cluster_dict[len(cluster_dict)] = [line]
+                        one_cluster_dict[len(cluster_dict) +
+                                         cluster_length] = [line]
+
+            cluster_dict.update(one_cluster_dict)
 
         if print_clusters:
             with open(self.console, 'w') as console_file:
@@ -373,6 +393,29 @@ class LogTemplateExtractor(object):
     #
     #     return cluster_dict
 
+
+    # def token_collection(self, cluster):
+    #     """
+    #     Collect the unique tokens at each position of a log within a cluster
+    #     """
+    #     token_collection = {}
+    #
+    #     for item in cluster:
+    #         line_tokens = self.to_wildcard(
+    #             re.split(self.delimiter, item[self.ignored_chars:]))
+    #
+    #         len_line = len(line_tokens)
+    #
+    #         for i in range(0, len_line):
+    #             token = line_tokens[i]
+    #             one_collection[i].setdefault(token, 1)
+    #
+    #         token_collection[len_line] = one_collection
+    #
+    #     return token_collection
+
+
+
     def discover_template(self, print_clusters=False, print_templates=False):
         """
         Abstract the template representation from each of the clusters.
@@ -380,17 +423,15 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         template_dict = {}
 
-        for i in cluster_dict:
-            for item in cluster_dict[i]:
-                break
-                # print item
-
-        # TODO(fluency03): to be finished
+        # for i in cluster_dict:
+        #     token_collection = self.token_collection(cluster_dict[i])
+        #     for length in token_collection:
+        #         one_collection = token_collection[length]
 
 
 
 
-
+        # TODO(fluency03): template representation
 
 
 
@@ -469,6 +510,11 @@ def main():
                                 #  '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
 
     # print 5*1.0/13
+    # print extractor.is_time("Feb 17 04:16:54 p")
+
+    # pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
+    #
+    # print re.match(pattern, astr1[21:]).group(1)
 
     # ---------------------------- For debugging ---------------------------- #
 
