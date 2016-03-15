@@ -43,6 +43,7 @@ class LogTemplateExtractor(object):
 
         # delimiters for dividing a log into tokens
         self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
+        self.delimiter_kept = r'([ ,:()\[\]=|/\\{}\'\"<>]+)'
 
         # two logs with editing distance less than distance_threshold
         # are considered to be similar
@@ -230,7 +231,7 @@ class LogTemplateExtractor(object):
 
         return tokens
 
-    def min_distance(self, added_line, cluster_dict):
+    def min_distance(self, added_line, one_cluster_dict):
         """
         Calculate the minimal distance between the log and all the clusters.
         Return the minimal distance and its index.
@@ -241,8 +242,8 @@ class LogTemplateExtractor(object):
 
         len_line = len(added_line_tokens)
 
-        for cluster_num in cluster_dict:
-            cluster = cluster_dict[cluster_num]
+        for cluster_num in one_cluster_dict:
+            cluster = one_cluster_dict[cluster_num]
             cluster_line_tokens = self.to_wildcard(
                 re.split(self.delimiter, cluster[0][self.ignored_chars:]))
 
@@ -325,21 +326,22 @@ class LogTemplateExtractor(object):
         """
         command_cluster = self.partition_by_command()
         cluster_dict = {}
+        cluster_num = 0
 
         for i in command_cluster:
             one_cluster_dict = {}
-            cluster_length = len(cluster_dict)
             for line in command_cluster[i]:
                 if not one_cluster_dict:
-                    one_cluster_dict[cluster_length] = [line]
+                    one_cluster_dict[cluster_num] = [line]
+                    cluster_num += 1
                 else:
                     min_dis, min_index = self.min_distance(line,
                                                            one_cluster_dict)
                     if min_dis < self.distance_threshold:
                         one_cluster_dict[min_index].append(line)
                     else:
-                        one_cluster_dict[len(cluster_dict) +
-                                         cluster_length] = [line]
+                        one_cluster_dict[cluster_num] = [line]
+                        cluster_num += 1
 
             cluster_dict.update(one_cluster_dict)
 
@@ -349,6 +351,8 @@ class LogTemplateExtractor(object):
                     console_file.write(str(i) + '\n')
                     for item in cluster_dict[i]:
                         console_file.write(item)
+
+        print "Number of clusters: %d" %len(cluster_dict)
 
         return cluster_dict
 
@@ -394,25 +398,37 @@ class LogTemplateExtractor(object):
     #     return cluster_dict
 
 
-    # def token_collection(self, cluster):
-    #     """
-    #     Collect the unique tokens at each position of a log within a cluster
-    #     """
-    #     token_collection = {}
-    #
-    #     for item in cluster:
-    #         line_tokens = self.to_wildcard(
-    #             re.split(self.delimiter, item[self.ignored_chars:]))
-    #
-    #         len_line = len(line_tokens)
-    #
-    #         for i in range(0, len_line):
-    #             token = line_tokens[i]
-    #             one_collection[i].setdefault(token, 1)
-    #
-    #         token_collection[len_line] = one_collection
-    #
-    #     return token_collection
+    def log_template(self, cluster):
+        """
+        Collect the unique tokens at each position of a log within a cluster
+        """
+        one_line_tokens = self.to_wildcard(
+            re.split(self.delimiter_kept, cluster[0][self.ignored_chars:]))
+
+        len_line = len(one_line_tokens)
+
+        token_collection = []
+
+        for item in cluster:
+            line_tokens = self.to_wildcard(
+                re.split(self.delimiter_kept, item[self.ignored_chars:]))
+
+            for i in range(0, len_line):
+                token = line_tokens[i]
+                if len(token_collection) > i:
+                    token_collection[i].setdefault(token)
+                else:
+                    token_collection.append({token: None})
+
+        # cardinality = []
+        # for i in range(0, len_line):
+            # cardinality.append(str(len(token_collection[i])))
+
+        for i in range(0, len_line):
+            if len(token_collection[i]) is not 1:
+                one_line_tokens[i] = '*'
+
+        return ''.join(one_line_tokens).rstrip() + '\n'
 
 
 
@@ -423,17 +439,8 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         template_dict = {}
 
-        # for i in cluster_dict:
-        #     token_collection = self.token_collection(cluster_dict[i])
-        #     for length in token_collection:
-        #         one_collection = token_collection[length]
-
-
-
-
-        # TODO(fluency03): template representation
-
-
+        for i in cluster_dict:
+            template_dict.setdefault(i, self.log_template(cluster_dict[i]))
 
         if print_templates:
             with open(self.outfile, 'w') as out_file:
@@ -441,6 +448,8 @@ class LogTemplateExtractor(object):
                     out_file.write(str(i) + '\n')
                     for item in template_dict[i]:
                         out_file.write(item)
+
+        print "Number of tempaltes: %d" %len(template_dict)
 
         return template_dict
 
@@ -459,12 +468,12 @@ def main():
     print "\nStart...\n"
 
     start_time = time.time()
-    logfile = "/home/cliu/Documents/SC-1/messages.1"
+    logfile = "/home/cliu/Documents/SC-1/messages.0"
     extractor = LogTemplateExtractor(logfile)
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    extractor.discover_template(print_clusters=True, print_templates=False)
+    extractor.discover_template(print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
@@ -474,7 +483,7 @@ def main():
     # list2 = ['a', 'b', 'd', 'c', 'e']
     # print extractor.levenshtein_numpy(list1, list2)
     # str1 = ("SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: "
-    #         "com<>pleted 2 of 2 procedures (100 percent)")
+            # "com<>pleted 2 of 2 procedures (100 percent)")
     # print extractor.to_wildcard(re.split(extractor.delimiter, str1))
     # string1 = 'adqe!f-'
     # string2 = 'adqef-'
@@ -515,6 +524,8 @@ def main():
     # pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
     #
     # print re.match(pattern, astr1[21:]).group(1)
+
+    # print ''.join(re.split(r'([ ,:()\[\]=|/\\{}\'\"<>]+)', str1))
 
     # ---------------------------- For debugging ---------------------------- #
 
