@@ -36,23 +36,31 @@ import time
 
 class LogTemplateExtractor(object):
     """
-    A log template extractor
+    A log template extractor.
+
+    Attributes:
+        logfile: a string, the source log file name/path.
+        outfile: a string, the output file for storing clustered logs.
+        console: a string, the output file for storing log templates.
+        delimiter_kept: regex, delimiters for dividing a log into tokens.
+        distance_threshold: a float, two logs with editing distance less than
+            this distance_threshold are considered to be similar.
+        ignored_chars: an integer, how many chars are ignored from the beginning
+            of a log (because of the time-stamp, server-name, etc.)
     """
     def __init__(self, logfile):
+        """
+        Inits LogTemplateExtractor class.
+        """
         self.logfile = logfile
         self.outfile = "/home/cliu/Documents/SC-1/output"
         self.console = "/home/cliu/Documents/SC-1/console"
 
-        # delimiters for dividing a log into tokens
         self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
         self.delimiter_kept = r'([ ,:()\[\]=|/\\{}\'\"<>]+)'
 
-        # two logs with editing distance less than distance_threshold
-        # are considered to be similar
         self.distance_threshold = 0.2
 
-        # how many chars are ignored from the beginning of a log
-        # (because of the time-stamp, server-name, etc.)
         self.ignored_chars = 21
 
     def set_logfile(self, logfile):
@@ -209,7 +217,7 @@ class LogTemplateExtractor(object):
     @classmethod
     def contain_hex(cls, string):
         """
-        Check whether it contains hex
+        Check whether it contains hex values
         """
         hex_pattern = r'0x[\da-fA-F]+'
 
@@ -219,7 +227,8 @@ class LogTemplateExtractor(object):
     # @classmethod
     def to_wildcard(self, tokens):
         """
-        Replace number tokens and hex (0x...) tokens by wildcard symbol * .
+        Replace number tokens, hex (0x...) tokens, ip addresses and
+        pci addresses by wildcard symbol * .
         """
         # hex_pattern = r'0x[\da-fA-F]+'
 
@@ -242,8 +251,9 @@ class LogTemplateExtractor(object):
 
     def min_distance(self, added_line, one_cluster_dict):
         """
-        Calculate the minimal distance between the log and all the clusters.
-        Return the minimal distance and its index.
+        Calculate the minimal distance between the log and all the sub-clusters
+            from previous pre-partitioned cluster.
+        Return the minimal distance and its index (key for cluster).
         """
         distance = {}
         # added_line_tokens = self.to_wildcard(
@@ -278,11 +288,14 @@ class LogTemplateExtractor(object):
 
     def partition_by_command(self):
         """
-        First partition the original logs based on their command type because:
+        First partition the original logs based on their command type and the
+        length of each log because:
         1. Dramatically reduce the computational time, especially plenty of
-           time spent on levenshtein distance.
+            time spent on levenshtein distance.
         2. Naturally, we should cluster logs starting with different command
-           names into different clusters.
+            names into different clusters.
+        3. The logs within one cluster sharing same length will make the next
+            template extraction step easier.
         """
         command_cluster = {}
         # pattern for extracting the command.
@@ -411,7 +424,9 @@ class LogTemplateExtractor(object):
     @classmethod
     def log_template(cls, cluster):
         """
-        Collect the unique tokens at each position of a log within a cluster
+        Collect the unique tokens at each position of a log within a cluster.
+        Update the positions where >1 unique tokens by wildcard *.
+        Generate the template representation for this cluster.
         """
         # one_line_tokens = self.to_wildcard(
             # re.split(self.delimiter_kept, cluster[0][self.ignored_chars:]))
