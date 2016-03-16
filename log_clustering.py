@@ -17,7 +17,10 @@ The method 'levenshteinNumPy(source, target)' implemented here is very slower
 than the package 'editdistance', since the source code of 'editdistance' is
 written in C++. However, if we would like to modify the levenshtein algorithm
 by adding weights to different token classes 'levenshteinNumPy(source, target)'
-is easier to change the code
+is easier to change the code.
+
+Author: Chang Liu (fluency03)
+Data: 2016-03-11
 """
 
 
@@ -291,7 +294,6 @@ class LogTemplateExtractor(object):
                 # print current_num
                 if not self.is_time(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
-                    # TODO(fluency03): use join()?
                     continue
                 else:
                     # Do something for each log
@@ -396,7 +398,6 @@ class LogTemplateExtractor(object):
     #
     #     return cluster_dict
 
-
     def log_template(self, cluster):
         """
         Collect the unique tokens at each position of a log within a cluster
@@ -429,8 +430,6 @@ class LogTemplateExtractor(object):
 
         return ''.join(one_line_tokens).rstrip() + '\n'
 
-
-
     def discover_template(self, print_clusters=False, print_templates=False):
         """
         Abstract the template representation from each of the clusters.
@@ -451,12 +450,6 @@ class LogTemplateExtractor(object):
         print "Number of tempaltes: %d" %len(template_dict)
 
         return template_dict
-
-
-
-
-
-
 
 
 def main():
