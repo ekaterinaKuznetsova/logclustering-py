@@ -23,7 +23,6 @@ is easier to change the code
 
 import editdistance
 from dateutil.parser import parse as timeparser
-# import mlpy
 # from numbers import Number
 import numpy as np
 import re
