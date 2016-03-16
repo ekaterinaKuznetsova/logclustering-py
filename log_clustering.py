@@ -477,57 +477,6 @@ def main():
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
 
-    # ---------------------------- For debugging ---------------------------- #
-    # list1 = ['a', 'b', 'c', 'd']
-    # list2 = ['a', 'b', 'd', 'c', 'e']
-    # print extractor.levenshtein_numpy(list1, list2)
-    # str1 = ("SC-1 ecimswm: ActivateUpgradePackage::doAct`~ion: "
-            # "com<>pleted 2 of 2 procedures (100 percent)")
-    # print extractor.to_wildcard(re.split(extractor.delimiter, str1))
-    # string1 = 'adqe!f-'
-    # string2 = 'adqef-'
-    # print extractor.levenshtein_numpy(string1, string2)
-    # print extractor.is_time("Feb 17 04:16:54 a"[:16])
-    # with open(logfile) as f:
-    #     print str(f.readline()).endswith('\n')
-    # print bool({})
-    #
-    # print editdistance.eval(list1, list2)
-
-    # print extractor.is_ipv4("127.1.1.1")
-    # # print extractor.is_ipv4("2001:1b70:82a0:46c::")
-    # print extractor.is_ipv6("fe80::1:a")
-    # print extractor.is_ipv6("2001:1b70:82a0:46c::0")
-    # print extractor.is_ipv6("0000:00:")
-    # print extractor.is_ipv6("fe80::213:5eff:feea:294c")
-    # print extractor.is_ipv6("fe80::200:ff:feff:1")
-    #
-    #
-    # print extractor.is_number('ccb')
-    #
-    # print extractor.is_time("Feb 17 04:16:54.16154")
-    # print extractor.is_time("Feb 7 04:16:54")
-    # print extractor.is_time("Feb 17 4:16:54")
-    # print extractor.is_time("2016-02-16T18:23:34")
-    # print extractor.is_time("04:16:54")
-    # print extractor.is_time("0000:00:")
-
-    # print extractor.is_pci_address("a0000:ff:0a.1:")
-
-    # print extractor.to_wildcard(['a', '0xa', '0', '0.0', '0xo', 'b',
-                                #  '125.6.3.2', '125.6.3.256', '0000:35:25.1:'])
-
-    # print 5*1.0/13
-    # print extractor.is_time("Feb 17 04:16:54 p")
-
-    # pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
-    #
-    # print re.match(pattern, astr1[21:]).group(1)
-
-    # print ''.join(re.split(r'([ ,:()\[\]=|/\\{}\'\"<>]+)', str1))
-
-    # ---------------------------- For debugging ---------------------------- #
-
     print "\nStop...\n"
 
 
