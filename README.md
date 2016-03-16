@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/fluency03/logclustering-py.svg?branch=master)](https://travis-ci.org/fluency03/logclustering-py)
 
+Log clustering by detecting the similarity (editing distance) between two logs. 
+
 ## Requirements
 
 - [Python 2.7](https://www.python.org/downloads/)
