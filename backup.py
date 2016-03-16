@@ -70,7 +70,7 @@ def levenshteinDistance(str1, str2):
     #     command_cluster[command] = [added_line]
     # else:
     #     command_cluster[command].append(added_line)
-    #     
+    #
     # ---------------------------- For debugging ---------------------------- #
     # list1 = ['a', 'b', 'c', 'd']
     # list2 = ['a', 'b', 'd', 'c', 'e']
@@ -119,5 +119,9 @@ def levenshteinDistance(str1, str2):
     # print re.match(pattern, astr1[21:]).group(1)
 
     # print ''.join(re.split(r'([ ,:()\[\]=|/\\{}\'\"<>]+)', str1))
+
+    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
+        # for line in in_file:
+            # print re.split(r'([\s,:()\[\]=|/\\{}\'\"<>]+)', line)
 
     # ---------------------------- For debugging ---------------------------- #
