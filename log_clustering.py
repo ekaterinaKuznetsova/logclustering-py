@@ -481,10 +481,17 @@ def main():
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    extractor.discover_template(print_clusters=True, print_templates=True)
+    # extractor.discover_template(print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
+
+
+    # ---------------------------- For debugging ---------------------------- #
+
+
+    # ---------------------------- For debugging ---------------------------- #
+
 
     print "\nStop...\n"
 
