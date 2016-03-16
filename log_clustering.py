@@ -272,10 +272,9 @@ class LogTemplateExtractor(object):
 
             if (abs(len_cluster - len_line) / min(len_line, len_cluster) <
                     self. distance_threshold):
-                dis_ratio = (float(editdistance.eval(cluster_line,
-                                                     added_line)) /
-                             float(min(len(added_line),
-                                       len(cluster_line))))
+                dis_ratio = (
+                    float(editdistance.eval(cluster_line, added_line)) /
+                    float(min(len(added_line), len(cluster_line))))
             else:
                 dis_ratio = float(1)
 
@@ -328,9 +327,8 @@ class LogTemplateExtractor(object):
 
                     length = len(line_tokens)
 
-                    command_cluster.setdefault((command, length),
-                                               [line_tokens]).append(
-                                                   line_tokens)
+                    command_cluster.setdefault(
+                        (command, length), [line_tokens]).append(line_tokens)
 
                     added_line = line
 
@@ -510,8 +508,7 @@ def main():
     # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
     #     for line in in_file:
     #         print [t for t in
-    #                re.split(r'([\s,:()\[\]=|/\\{}\'\"<>]+)',
-    #                         line)
+    #                re.split(r'([\s,:()\[\]=|/\\{}\'\"<>]+)', line)
     #                if t is not '']
 
     # ---------------------------- For debugging ---------------------------- #
