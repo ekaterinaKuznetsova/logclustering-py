@@ -59,7 +59,7 @@ class LogTemplateExtractor(object):
         self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
         self.delimiter_kept = r'([ ,:()\[\]=|/\\{}\'\"<>]+)'
 
-        self.distance_threshold = 0.2
+        self.distance_threshold = 0.1
 
         self.ignored_chars = 21
 
@@ -320,9 +320,11 @@ class LogTemplateExtractor(object):
                 else:
                     # Do something for each log
                     command = re.match(pattern, added_line[21:]).group(1)
-                    line_tokens = self.to_wildcard(
-                        re.split(self.delimiter_kept,
-                                 added_line[self.ignored_chars:]))
+                    line_tokens = [t for t in
+                                   re.split(self.delimiter_kept,
+                                            added_line[self.ignored_chars:])
+                                   if t is not '']
+                    line_tokens = self.to_wildcard(line_tokens)
 
                     length = len(line_tokens)
 
@@ -491,12 +493,12 @@ def main():
     print "\nStart...\n"
 
     start_time = time.time()
-    logfile = "/home/cliu/Documents/SC-1/messages.0"
+    logfile = "/home/cliu/Documents/SC-1/messages.1"
     extractor = LogTemplateExtractor(logfile)
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    # extractor.discover_template(print_clusters=True, print_templates=True)
+    extractor.discover_template(print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
@@ -504,6 +506,13 @@ def main():
 
     # ---------------------------- For debugging ---------------------------- #
 
+
+    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
+    #     for line in in_file:
+    #         print [t for t in
+    #                re.split(r'([\s,:()\[\]=|/\\{}\'\"<>]+)',
+    #                         line)
+    #                if t is not '']
 
     # ---------------------------- For debugging ---------------------------- #
 
