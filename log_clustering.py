@@ -44,9 +44,9 @@ class LogTemplateExtractor(object):
         console: a string, the output file for storing log templates.
         delimiter_kept: regex, delimiters for dividing a log into tokens.
         distance_threshold: a float, two logs with editing distance less than
-            this distance_threshold are considered to be similar.
+            this distance_threshold are considered to be similar. Default: 0.1
         ignored_chars: an integer, how many chars are ignored from the beginning
-            of a log (because of the time-stamp, server-name, etc.)
+            of a log (because of the time-stamp, server-name, etc.) Default: 21
     """
     def __init__(self, logfile):
         """
@@ -56,8 +56,8 @@ class LogTemplateExtractor(object):
         self.outfile = "/home/cliu/Documents/SC-1/output"
         self.console = "/home/cliu/Documents/SC-1/console"
 
-        self.delimiter = r'[ ,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
-        self.delimiter_kept = r'([ ,:()\[\]=|/\\{}\'\"<>]+)'
+        self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
+        self.delimiter_kept = r'([\s,:()\[\]=|/\\{}\'\"<>]+)'
 
         self.distance_threshold = 0.1
 
