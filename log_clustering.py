@@ -231,6 +231,13 @@ class LogTemplateExtractor(object):
                     self.is_pci_address(token)):
                 tokens[i] = '*'
 
+        # tokens = ['*' if (self.is_number(tokens[i]) or
+        #                   self.contain_hex(tokens[i]) or
+        #                   self.is_ip_address(tokens[i]) or
+        #                   self.is_pci_address(tokens[i]))
+        #           else tokens[i]
+        #           for i in range(0, len(tokens))]
+
         return tokens
 
     def min_distance(self, added_line, one_cluster_dict):
@@ -239,24 +246,26 @@ class LogTemplateExtractor(object):
         Return the minimal distance and its index.
         """
         distance = {}
-        added_line_tokens = self.to_wildcard(
-            re.split(self.delimiter, added_line[self.ignored_chars:]))
+        # added_line_tokens = self.to_wildcard(
+            # re.split(self.delimiter_kept, added_line[self.ignored_chars:]))
 
-        len_line = len(added_line_tokens)
+        len_line = len(added_line)
 
         for cluster_num in one_cluster_dict:
             cluster = one_cluster_dict[cluster_num]
-            cluster_line_tokens = self.to_wildcard(
-                re.split(self.delimiter, cluster[0][self.ignored_chars:]))
+            # cluster_line_tokens = self.to_wildcard(
+                # re.split(self.delimiter_kept,
+                        #  cluster[0][self.ignored_chars:]))
+            cluster_line = cluster[0]
 
-            len_cluster = len(cluster_line_tokens)
+            len_cluster = len(cluster_line)
 
             if (abs(len_cluster - len_line) / min(len_line, len_cluster) <
                     self. distance_threshold):
-                dis_ratio = (float(editdistance.eval(cluster_line_tokens,
-                                                     added_line_tokens)) /
-                             float(min(len(added_line_tokens),
-                                       len(cluster_line_tokens))))
+                dis_ratio = (float(editdistance.eval(cluster_line,
+                                                     added_line)) /
+                             float(min(len(added_line),
+                                       len(cluster_line))))
             else:
                 dis_ratio = float(1)
 
@@ -299,13 +308,14 @@ class LogTemplateExtractor(object):
                     # Do something for each log
                     command = re.match(pattern, added_line[21:]).group(1)
                     line_tokens = self.to_wildcard(
-                        re.split(self.delimiter,
+                        re.split(self.delimiter_kept,
                                  added_line[self.ignored_chars:]))
 
                     length = len(line_tokens)
 
                     command_cluster.setdefault((command, length),
-                                               [added_line]).append(added_line)
+                                               [line_tokens]).append(
+                                                   line_tokens)
 
                     added_line = line
 
@@ -313,11 +323,11 @@ class LogTemplateExtractor(object):
             # Do something for the last log
             command = re.match(pattern, added_line[21:]).group(1)
             line_tokens = self.to_wildcard(
-                re.split(self.delimiter, added_line[self.ignored_chars:]))
+                re.split(self.delimiter_kept, added_line[self.ignored_chars:]))
             length = len(line_tokens)
 
             command_cluster.setdefault((command, length),
-                                       [added_line]).append(added_line)
+                                       [line_tokens]).append(line_tokens)
 
         return command_cluster
 
@@ -351,7 +361,7 @@ class LogTemplateExtractor(object):
                 for i in cluster_dict:
                     console_file.write(str(i) + '\n')
                     for item in cluster_dict[i]:
-                        console_file.write(item)
+                        console_file.write(''.join(item).rstrip() + '\n')
 
         print "Number of clusters: %d" %len(cluster_dict)
 
@@ -398,23 +408,25 @@ class LogTemplateExtractor(object):
     #
     #     return cluster_dict
 
-    def log_template(self, cluster):
+    @classmethod
+    def log_template(cls, cluster):
         """
         Collect the unique tokens at each position of a log within a cluster
         """
-        one_line_tokens = self.to_wildcard(
-            re.split(self.delimiter_kept, cluster[0][self.ignored_chars:]))
+        # one_line_tokens = self.to_wildcard(
+            # re.split(self.delimiter_kept, cluster[0][self.ignored_chars:]))
+        one_line_tokens = cluster[0]
 
         len_line = len(one_line_tokens)
 
         token_collection = []
 
         for item in cluster:
-            line_tokens = self.to_wildcard(
-                re.split(self.delimiter_kept, item[self.ignored_chars:]))
+            # line_tokens = self.to_wildcard(
+                # re.split(self.delimiter_kept, item[self.ignored_chars:]))
 
             for i in range(0, len_line):
-                token = line_tokens[i]
+                token = item[i]
                 if len(token_collection) > i:
                     token_collection[i].setdefault(token)
                 else:
@@ -423,6 +435,10 @@ class LogTemplateExtractor(object):
         # cardinality = []
         # for i in range(0, len_line):
             # cardinality.append(str(len(token_collection[i])))
+
+        # one_line_tokens = ['*' if len(token_collection[i]) is not 1
+                        #    else one_line_tokens[i]
+                        #    for i in range(0, len_line)]
 
         for i in range(0, len_line):
             if len(token_collection[i]) is not 1:
