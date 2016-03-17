@@ -404,47 +404,6 @@ class LogTemplateExtractor(object):
 
         return cluster_dict
 
-    # def log_clustering_slow(self):
-    #     """
-    #     Log clustering without pre-partitioning based on command.
-    #     This is much slower than logClusteringWithPrePartition().
-    #     """
-    #
-    #     cluster_dict = {}
-    #
-    #     with open(self.logfile) as in_file:
-    #         added_line = in_file.readline()
-    #         while not self.is_timestamp(added_line[:16]):
-    #             added_line = in_file.readline()
-    #         for line in in_file:
-    #             if not self.is_timestamp(line[:16]):
-    #                 added_line = added_line.rstrip() + ' | ' + line
-    #                 continue
-    #             else:
-    #                 # Do something for each log
-    #                 if not cluster_dict:
-    #                     cluster_dict[0] = [added_line]
-    #                 else:
-    #                     min_dis, min_index = self.min_distance(added_line,
-    #                                                            cluster_dict)
-    #                     if min_dis < self.distance_threshold:
-    #                         cluster_dict[min_index].append(added_line)
-    #                     else:
-    #                         cluster_dict[len(cluster_dict)] = [added_line]
-    #
-    #                 added_line = line
-    #
-    #         # Add the last line
-    #         # Do something for the last log
-    #         min_dis, min_index = self.min_distance(added_line,
-    #                                                cluster_dict)
-    #         if min_dis < self.distance_threshold:
-    #             cluster_dict[min_index].append(added_line)
-    #         else:
-    #             cluster_dict[len(cluster_dict)] = [added_line]
-    #
-    #     return cluster_dict
-
     @classmethod
     def log_template(cls, cluster):
         """
@@ -518,25 +477,20 @@ def main():
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
-    extractor.discover_template(print_clusters=True, print_templates=True)
+    # extractor.discover_template(print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
 
-
-    # ---------------------------- For debugging ---------------------------- #
-
-
-    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
-    #     for line in in_file:
-    #         print [t for t in
-    #                re.split(r'([\s,:()\[\]=|/\\{}\'\"<>]+)', line)
-    #                if t is not '']
-
-    # ---------------------------- For debugging ---------------------------- #
-
-
     print "\nStop...\n"
+
+
+
+    # ---------------------------- For debugging ---------------------------- #
+
+
+
+    # ---------------------------- For debugging ---------------------------- #
 
 
 if __name__ == "__main__":
