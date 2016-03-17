@@ -40,8 +40,9 @@ class LogTemplateExtractor(object):
 
     Attributes:
         logfile: a string, the source log file name/path.
-        outfile: a string, the output file for storing clustered logs.
-        console: a string, the output file for storing log templates.
+        template_file: a string, the output file for storing log templates.
+        cluster_file: a string, the output file for storing clustered logs.
+        seqfile: a string, the output file for storing log sequences.
         delimiter_kept: regex, delimiters for dividing a log into tokens.
         distance_threshold: a float, two logs with editing distance less than
             this distance_threshold are considered to be similar. Default: 0.1
@@ -53,10 +54,11 @@ class LogTemplateExtractor(object):
         Inits LogTemplateExtractor class.
         """
         self.logfile = logfile
-        self.outfile = "/home/cliu/Documents/SC-1/output"
-        self.console = "/home/cliu/Documents/SC-1/console"
+        self.template_file = "/home/cliu/Documents/SC-1/output"
+        self.cluster_file = "/home/cliu/Documents/SC-1/console"
+        self.seqfile = "/home/cliu/Documents/SC-1/sequence"
 
-        self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
+        # self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
         self.delimiter_kept = r'([\s,:()\[\]=|/\\{}\'\"<>]+)'
 
         self.distance_threshold = 0.1
@@ -74,7 +76,7 @@ class LogTemplateExtractor(object):
         Set the delimiters (in regular expression)
         for dividing one log into tokens.
         """
-        self.delimiter = delimiter
+        self.delimiter_kept = delimiter
 
     def set_distance_threshold(self, distance_threshold):
         """
@@ -193,7 +195,7 @@ class LogTemplateExtractor(object):
     @classmethod
     def is_pci_address(cls, address):
         """
-        Check whether this is a PCI address
+        Check whether this is a PCI address, like 0000:00:00.0
         """
         pci_addr_pattern = r'(0000):([\da-fA-F]{2}):([\da-fA-F]{2}).(\d)'
 
@@ -240,13 +242,6 @@ class LogTemplateExtractor(object):
                     self.is_pci_address(token)):
                 tokens[i] = '*'
 
-        # tokens = ['*' if (self.is_number(tokens[i]) or
-        #                   self.contain_hex(tokens[i]) or
-        #                   self.is_ip_address(tokens[i]) or
-        #                   self.is_pci_address(tokens[i]))
-        #           else tokens[i]
-        #           for i in range(0, len(tokens))]
-
         return tokens
 
     def min_distance(self, added_line, one_cluster_dict):
@@ -255,21 +250,22 @@ class LogTemplateExtractor(object):
             from previous pre-partitioned cluster.
         Return the minimal distance and its index (key for cluster).
         """
+        # dictionary of the distance between this log and
+        # each of its compared clusters
         distance = {}
-        # added_line_tokens = self.to_wildcard(
-            # re.split(self.delimiter_kept, added_line[self.ignored_chars:]))
 
         len_line = len(added_line)
 
         for cluster_num in one_cluster_dict:
             cluster = one_cluster_dict[cluster_num]
-            # cluster_line_tokens = self.to_wildcard(
-                # re.split(self.delimiter_kept,
-                        #  cluster[0][self.ignored_chars:]))
-            cluster_line = cluster[0]
 
+            # the first log of this cluster represents this cluster
+            cluster_line = cluster[0]
             len_cluster = len(cluster_line)
 
+            # if the length difference is already beyond the distance threshold
+            # there is no need to calculate the editing distance, and
+            # the distance ratio will be set to 1
             if (abs(len_cluster - len_line) / min(len_line, len_cluster) <
                     self. distance_threshold):
                 dis_ratio = (
@@ -280,7 +276,7 @@ class LogTemplateExtractor(object):
 
             distance[cluster_num] = dis_ratio
 
-        # print distance
+        # find the minimal distance and its key value
         mini = min(distance.iteritems(), key=lambda x: x[1])
 
         return mini[1], mini[0]
@@ -296,44 +292,62 @@ class LogTemplateExtractor(object):
         3. The logs within one cluster sharing same length will make the next
             template extraction step easier.
         """
+        # dictionary of the partitions divided based on
+        # the tuple of command type and log length
         command_cluster = {}
+
         # pattern for extracting the command.
         # the command token could contain English letters, '-', '_' and '.'
         # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
         # mmas_syslog_control_setup.sh, etc.
         pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
+
+        # keep track of the the number of each log
         current_num = 0
 
         with open(self.logfile) as in_file:
+            # read the first line
             added_line = in_file.readline()
             current_num = current_num + 1
+
+            # the real first line is the first log appearing with time-stamp
             while not self.is_timestamp(added_line[:16]):
                 added_line = in_file.readline()
                 current_num = current_num + 1
+
+            # read th following lines
             for line in in_file:
                 current_num = current_num + 1
-                # print current_num
+
+                # if the current line is not with time-stamp, it will be
+                # added together to its previous logs until the the previous
+                # nearest log with time-stamp
                 if not self.is_time(line[:16]):
                     added_line = added_line.rstrip() + ' | ' + line
                     continue
                 else:
-                    # Do something for each log
+                    # extract command
                     command = re.match(pattern, added_line[21:]).group(1)
+                    # tokenize the log message
                     line_tokens = [t for t in
                                    re.split(self.delimiter_kept,
                                             added_line[self.ignored_chars:])
                                    if t is not '']
+                    # convert numbers, hexs, ip address, pci address to *
                     line_tokens = self.to_wildcard(line_tokens)
-
+                    # get the length of this token list
                     length = len(line_tokens)
 
+                    # if this cluster (command, length) existing,
+                    # append current log into its cluster;
+                    # if not, create a new cluster, key is (command, length),
+                    # initial value is [current log]
                     command_cluster.setdefault(
                         (command, length), [line_tokens]).append(line_tokens)
 
                     added_line = line
 
             # Add the last line
-            # Do something for the last log
             command = re.match(pattern, added_line[21:]).group(1)
             line_tokens = self.to_wildcard(
                 re.split(self.delimiter_kept, added_line[self.ignored_chars:]))
@@ -348,8 +362,12 @@ class LogTemplateExtractor(object):
         """
         Similarity checks and clustering after partitioning based on command.
         """
+        # clusters based on command and log length
         command_cluster = self.partition_by_command()
+
+        # dictionary of the log clusters
         cluster_dict = {}
+        # keep track of the log cluster number
         cluster_num = 0
 
         for i in command_cluster:
@@ -359,22 +377,28 @@ class LogTemplateExtractor(object):
                     one_cluster_dict[cluster_num] = [line]
                     cluster_num += 1
                 else:
-                    min_dis, min_index = self.min_distance(line,
-                                                           one_cluster_dict)
+                    # get the minimal distance ratio and its index key
+                    min_dis, min_key = self.min_distance(line, one_cluster_dict)
+
+                    # if minimal distance ratio is less than the threshold,
+                    # add this log into the cluster according to the index key;
+                    # otherwise, create a new cluster
                     if min_dis < self.distance_threshold:
-                        one_cluster_dict[min_index].append(line)
+                        one_cluster_dict[min_key].append(line)
                     else:
                         one_cluster_dict[cluster_num] = [line]
                         cluster_num += 1
 
+            # put all new clusters into the dictionary
             cluster_dict.update(one_cluster_dict)
 
+        # print the clusters
         if print_clusters:
-            with open(self.console, 'w') as console_file:
+            with open(self.cluster_file, 'w') as cluster_file:
                 for i in cluster_dict:
-                    console_file.write(str(i) + '\n')
+                    cluster_file.write(str(i) + '\n')
                     for item in cluster_dict[i]:
-                        console_file.write(''.join(item).rstrip() + '\n')
+                        cluster_file.write(''.join(item).rstrip() + '\n')
 
         print "Number of clusters: %d" %len(cluster_dict)
 
@@ -428,18 +452,16 @@ class LogTemplateExtractor(object):
         Update the positions where >1 unique tokens by wildcard *.
         Generate the template representation for this cluster.
         """
-        # one_line_tokens = self.to_wildcard(
-            # re.split(self.delimiter_kept, cluster[0][self.ignored_chars:]))
+        # the first log represent this cluster
         one_line_tokens = cluster[0]
-
+        # get the length
         len_line = len(one_line_tokens)
 
+        # a list of dictionaries represents at each of the token position
+        # how many different tokens there are, and what are they
         token_collection = []
 
         for item in cluster:
-            # line_tokens = self.to_wildcard(
-                # re.split(self.delimiter_kept, item[self.ignored_chars:]))
-
             for i in range(0, len_line):
                 token = item[i]
                 if len(token_collection) > i:
@@ -451,10 +473,8 @@ class LogTemplateExtractor(object):
         # for i in range(0, len_line):
             # cardinality.append(str(len(token_collection[i])))
 
-        # one_line_tokens = ['*' if len(token_collection[i]) is not 1
-                        #    else one_line_tokens[i]
-                        #    for i in range(0, len_line)]
-
+        # for positions sharing more than one unique token,
+        # regard them as variables and convert them into *
         for i in range(0, len_line):
             if len(token_collection[i]) is not 1:
                 one_line_tokens[i] = '*'
@@ -468,15 +488,17 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         template_dict = {}
 
+        # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
             template_dict.setdefault(i, self.log_template(cluster_dict[i]))
 
+        # print the template representations
         if print_templates:
-            with open(self.outfile, 'w') as out_file:
+            with open(self.template_file, 'w') as template_file:
                 for i in template_dict:
-                    out_file.write(str(i) + '\n')
+                    template_file.write(str(i) + '\n')
                     for item in template_dict[i]:
-                        out_file.write(item)
+                        template_file.write(item)
 
         print "Number of tempaltes: %d" %len(template_dict)
 
