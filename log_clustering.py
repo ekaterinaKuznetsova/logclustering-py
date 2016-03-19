@@ -464,6 +464,30 @@ class LogTemplateExtractor(object):
         return template_dict
 
 
+    def generate_sequence(self, new_logfile, print_sequence=True,
+                          print_clusters=False, print_templates=False):
+        """
+        Generate the log sequence based on previous generated templates and
+        new input log files
+        """
+        template_dict = self.discover_template(print_clusters=True,
+                                               print_templates=True)
+
+        # print the template representations
+        with open(new_logfile, 'r') as seq_file:
+            with open(self.seqfile, 'w') as seq_file:
+                pass
+
+
+
+
+
+
+
+
+
+
+
 def main():
     """
     Main function
