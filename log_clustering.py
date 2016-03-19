@@ -468,8 +468,30 @@ class LogTemplateExtractor(object):
 
         return self.template_dict
 
+    def generate_search_tree(self):
+        """
+        Generate the search tree for matching new logs and ID them.
+        """
+        pass
 
-    def generate_sequence(self, new_logfile, print_sequence=True,
+
+
+
+
+
+    def generate_hashtable(self):
+        """
+        Generate the hashtable for matching new logs and ID them.
+        """
+        pass
+
+
+
+
+
+
+
+    def generate_sequence(self, new_logfile,
                           print_clusters=False, print_templates=False):
         """
         Generate the log sequence based on previous generated templates and
@@ -477,7 +499,8 @@ class LogTemplateExtractor(object):
         Either: find the correct ID for each of the new log;
         Or: put the un-matched logs into the cluster '0', representing 'unknown'
         """
-        self.discover_template(print_clusters=True, print_templates=True)
+        self.discover_template(print_clusters=print_clusters,
+                               print_templates=print_templates)
 
         # print the template representations
         with open(new_logfile, 'r') as new_file:
@@ -508,7 +531,7 @@ def main():
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
-    extractor.generate_sequence(logfile, print_sequence=True,
+    extractor.generate_sequence(logfile,
                                 print_clusters=True, print_templates=True)
     stop_time = time.time()
 
