@@ -63,7 +63,7 @@ class LogTemplateExtractor(object):
         self.search_dict_file = "/home/cliu/Documents/SC-1/search_dict"
 
         # self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
-        self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>]+)'
+        self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
 
         self.distance_threshold = 0.1
 
@@ -539,6 +539,20 @@ class LogTemplateExtractor(object):
 
         return self.search_dict
 
+    @classmethod
+    def compare_two_tokens(cls, token1, token2):
+        """
+        Compare two string tokens:
+        if either of them is *, then regard them are equal, return True;
+        if none of them is * but they are equal, return True;
+        else, return False.
+        """
+        if token1 == '*' or token2 == '*':
+            return True
+        elif token1 == token2:
+            return True
+        else:
+            return False
 
     def generate_sequence(self, new_logfile, print_search_dict=False,
                           print_clusters=False, print_templates=False):
@@ -558,18 +572,103 @@ class LogTemplateExtractor(object):
                                       print_clusters=print_clusters,
                                       print_templates=print_templates)
 
+        # current_num = 0
+        # regex for extracting command
+        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
+
         # print the template representations
         with open(new_logfile, 'r') as new_file:
             with open(self.seqfile, 'w') as seq_file:
-                pass
+                added_line = new_file.readline()
+                # current_num = current_num + 1
 
+                # the real first line is the first log appearing with time-stamp
+                while not self.is_timestamp(added_line[:16]):
+                    added_line = new_file.readline()
+                    # current_num = current_num + 1
 
+                # read th following lines
+                for line in new_file:
+                    is_matched = False
+                    # current_num = current_num + 1
 
+                    # if the current line is not with time-stamp, it will be
+                    # added together to its previous logs until the the previous
+                    # nearest log with time-stamp
+                    if not self.is_time(line[:16]):
+                        added_line = added_line.rstrip() + ' | ' + line
+                        continue
+                    else:
+                        # extract command
+                        command = re.match(cmd_pattern,
+                                           added_line[21:]).group(1)
+                        # tokenize the log message
+                        line_tokens = [t for t in
+                                       re.split(self.delimiter_kept,
+                                                added_line[self.ignored_chars:])
+                                       if t is not '']
+                        # convert numbers, hexs, ip address, pci address to *
+                        line_tokens = self.to_wildcard(line_tokens)
+                        # get the length of this token list
+                        length = len(line_tokens)
 
+                        # find this log in the search_dict
+                        if self.search_dict.has_key((command, length)):
+                            compare_list = self.search_dict[(command, length)]
+                            for id_ in compare_list:
+                                compare_tokens = [
+                                    t for t in
+                                    re.split(self.delimiter_kept,
+                                             self.template_dict[id_])
+                                    if t is not '']
+                                compare_result = [
+                                    True if self.compare_two_tokens(a, b)
+                                    else False
+                                    for a, b in zip(compare_tokens,
+                                                    line_tokens)]
+                                if False not in compare_result:
+                                    is_matched = True
+                                if is_matched:
+                                    seq_file.write(str(id_) + '\n')
+                                    # print str(current_num) + ' True'
+                                    break
 
+                            if not is_matched:
+                                seq_file.write('0\n')
+                                # print str(current_num) + ' False'
 
+                        added_line = line
 
+                # Add the last line
+                command = re.match(cmd_pattern, added_line[21:]).group(1)
+                line_tokens = self.to_wildcard(
+                    re.split(self.delimiter_kept,
+                             added_line[self.ignored_chars:]))
+                length = len(line_tokens)
 
+                is_matched = False
+                if self.search_dict.has_key((command, length)):
+                    compare_list = self.search_dict[(command, length)]
+                    for id_ in compare_list:
+                        compare_tokens = [
+                            t for t in
+                            re.split(self.delimiter_kept,
+                                     self.template_dict[id_])
+                            if t is not '']
+                        compare_result = [
+                            True if self.compare_two_tokens(a, b)
+                            else False
+                            for a, b in zip(compare_tokens, line_tokens)]
+                        if False not in compare_result:
+                            is_matched = True
+                        if is_matched:
+                            seq_file.write(str(id_) + '\n')
+                            # print str(current_num) + ' True'
+                            break
+
+                    if not is_matched:
+                        seq_file.write('0\n')
+                        # print str(current_num) + ' False'
 
 
 
@@ -602,14 +701,9 @@ def main():
 
     # ---------------------------- For debugging ---------------------------- #
 
-    # test_dict = {}
-    #
-    # for i in range(0, 100):
-    #     test_dict.setdefault(i%5, [i]).append(i)
-    #
-    # for a in test_dict:
-    #     print a
-    #     print test_dict[a]
+    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
+        # for line in in_file:
+            # print re.split(r'([*\s,:()\[\]=|/\\{}\'\"<>])', line)
 
     # ---------------------------- For debugging ---------------------------- #
 
