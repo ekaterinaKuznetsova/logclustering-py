@@ -62,7 +62,6 @@ class LogTemplateExtractor(object):
         self.seqfile = "/home/cliu/Documents/SC-1/sequence"
         self.search_dict_file = "/home/cliu/Documents/SC-1/search_dict"
 
-        # self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
         self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
 
         self.distance_threshold = 0.1
@@ -106,12 +105,12 @@ class LogTemplateExtractor(object):
         """
         self.cluster_file = cluster_file
 
-    def set_delimiter(self, delimiter):
+    def set_delimiter(self, delimiter_kept):
         """
         Set the delimiters (in regular expression)
         for dividing one log into tokens.
         """
-        self.delimiter_kept = delimiter
+        self.delimiter_kept = delimiter_kept
 
     def set_distance_threshold(self, distance_threshold):
         """
@@ -119,7 +118,7 @@ class LogTemplateExtractor(object):
         The less the threshold is, the more similar two logs have to be
         if they want to be clustered together.
         """
-        self.logfile = distance_threshold
+        self.distance_threshold = distance_threshold
 
     def set_ignored_chars(self, ignored_chars):
         """
@@ -432,6 +431,7 @@ class LogTemplateExtractor(object):
 
         # print the clusters
         if print_clusters:
+            print "    |-Writing the clusters into %s ..." %self.cluster_file
             with open(self.cluster_file, 'w') as cluster_file:
                 for i in cluster_dict:
                     cluster_file.write(str(i) + '\n')
@@ -492,6 +492,7 @@ class LogTemplateExtractor(object):
 
         # print the template representations
         if print_templates:
+            print "    |-Writing the templates into %s ..." %self.template_file
             with open(self.template_file, 'w') as template_file:
                 for i in self.template_dict:
                     template_file.write(str(i) + '\n')
@@ -502,7 +503,7 @@ class LogTemplateExtractor(object):
 
         return self.template_dict
 
-    def generate_search_dict(self, search_table_file, print_search_dict=False,
+    def generate_search_dict(self, search_dict_file, print_search_dict=False,
                              print_clusters=False, print_templates=False):
         """
         Generate the hashtable for matching new logs and ID them.
@@ -536,13 +537,15 @@ class LogTemplateExtractor(object):
 
         # print the template search dictionary
         if print_search_dict:
-            with open(search_table_file, 'w') as search_table_file:
+            print ("\nWriting the search dictionary into %s ..."
+                   %search_dict_file)
+            with open(search_dict_file, 'w') as search_dict_file:
                 for i in self.search_dict:
-                    search_table_file.write('\n' + str(i) + '\n')
+                    search_dict_file.write('\n' + str(i) + '\n')
                     for item in self.search_dict[i]:
-                        search_table_file.write(str(item) + ' ')
+                        search_dict_file.write(str(item) + ' ')
 
-        print "\nTemplate search dictionary generated!\n"
+        print "Template search dictionary generated!\n"
 
         return self.search_dict
 
@@ -627,6 +630,7 @@ class LogTemplateExtractor(object):
         # current_num = 0
 
         print "\nStart to generate sequence..."
+        print "Writing the sequence into %s ..." %self.seqfile
 
         # print the template representations
         with open(new_logfile, 'r') as new_file:
