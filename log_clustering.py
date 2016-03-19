@@ -669,7 +669,6 @@ def main():
     """
     Main function
     """
-
     print "\nStart...\n"
 
     start_time = time.time()
@@ -699,5 +698,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # sys.stdout = open(console, 'w')
     main()
