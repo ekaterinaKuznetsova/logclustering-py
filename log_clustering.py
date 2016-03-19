@@ -48,8 +48,9 @@ class LogTemplateExtractor(object):
             this distance_threshold are considered to be similar. Default: 0.1
         ignored_chars: an integer, how many chars are ignored from the beginning
             of a log (because of the time-stamp, server-name, etc.) Default: 21
-        template_dict: a dictionary, for storing all the clustered log templates
+        template_dict: a dictionary, storing all the clustered log templates
             and their IDs
+        search_dict: a dictionary, stroing tempalte IDs for new log matching
     """
     def __init__(self, logfile):
         """
@@ -59,6 +60,7 @@ class LogTemplateExtractor(object):
         self.template_file = "/home/cliu/Documents/SC-1/output"
         self.cluster_file = "/home/cliu/Documents/SC-1/console"
         self.seqfile = "/home/cliu/Documents/SC-1/sequence"
+        self.search_dict_file = "/home/cliu/Documents/SC-1/search_dict"
 
         # self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
         self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>]+)'
@@ -69,11 +71,40 @@ class LogTemplateExtractor(object):
 
         self.template_dict = {}
 
+        self.search_dict = {}
+
     def set_logfile(self, logfile):
         """
         Set the source log file (name/path) which is going to be analyzed.
         """
         self.logfile = logfile
+
+    def set_seqfile(self, seqfile):
+        """
+        Set the sequence log file (name/path) which final sequence of the logs.
+        """
+        self.seqfile = seqfile
+
+    def set_search_dict_file(self, search_dict_file):
+        """
+        Set the search_dict file (name/path) which search dictionary for
+        new input log files.
+        """
+        self.search_dict_file = search_dict_file
+
+    def set_template_file(self, template_file):
+        """
+        Set the template log file (name/path) which tempalte IDs and
+        their representations.
+        """
+        self.template_file = template_file
+
+    def set_cluster_file(self, cluster_file):
+        """
+        Set the log cluster file (name/path) which template ID and the
+        logs contained in each of the clusters.
+        """
+        self.cluster_file = cluster_file
 
     def set_delimiter(self, delimiter):
         """
@@ -347,7 +378,7 @@ class LogTemplateExtractor(object):
                     # if not, create a new cluster, key is (command, length),
                     # initial value is [current log]
                     command_cluster.setdefault(
-                        (command, length), [line_tokens]).append(line_tokens)
+                        (command, length), []).append(line_tokens)
 
                     added_line = line
 
@@ -358,7 +389,7 @@ class LogTemplateExtractor(object):
             length = len(line_tokens)
 
             command_cluster.setdefault((command, length),
-                                       [line_tokens]).append(line_tokens)
+                                       []).append(line_tokens)
 
         return command_cluster
 
@@ -468,30 +499,48 @@ class LogTemplateExtractor(object):
 
         return self.template_dict
 
-    def generate_search_tree(self):
-        """
-        Generate the search tree for matching new logs and ID them.
-        """
-        pass
-
-
-
-
-
-
-    def generate_hashtable(self):
+    def generate_search_dict(self, search_table_file, print_search_dict=False,
+                             print_clusters=False, print_templates=False):
         """
         Generate the hashtable for matching new logs and ID them.
         """
-        pass
+        self.discover_template(print_clusters=print_clusters,
+                               print_templates=print_templates)
+
+        # regex for extracting command
+        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
 
 
+        for tempalte_id in self.template_dict:
+            # get te tempalte representation
+            tempalte = self.template_dict[tempalte_id]
+            # print tempalte_id
+            # get the command of thie template
+            command = re.match(cmd_pattern, tempalte).group(1)
+
+            # get the token list of this template
+            tempalte_tokens = [t for t in
+                               re.split(self.delimiter_kept, tempalte)
+                               if t is not '']
+
+            # get the length of this template
+            length = len(tempalte_tokens)
+
+            self.search_dict.setdefault((command, length),
+                                        []).append(tempalte_id)
+
+        # print the template search dictionary
+        if print_search_dict:
+            with open(search_table_file, 'w') as search_table_file:
+                for i in self.search_dict:
+                    search_table_file.write('\n' + str(i) + '\n')
+                    for item in self.search_dict[i]:
+                        search_table_file.write(str(item) + ' ')
+
+        return self.search_dict
 
 
-
-
-
-    def generate_sequence(self, new_logfile,
+    def generate_sequence(self, new_logfile, print_search_dict=False,
                           print_clusters=False, print_templates=False):
         """
         Generate the log sequence based on previous generated templates and
@@ -499,8 +548,13 @@ class LogTemplateExtractor(object):
         Either: find the correct ID for each of the new log;
         Or: put the un-matched logs into the cluster '0', representing 'unknown'
         """
-        self.discover_template(print_clusters=print_clusters,
-                               print_templates=print_templates)
+
+        if not self.search_dict:
+            print "Generate the search_dict first."
+            self.generate_search_dict(self.search_dict_file,
+                                      print_search_dict=print_search_dict,
+                                      print_clusters=print_clusters,
+                                      print_templates=print_templates)
 
         # print the template representations
         with open(new_logfile, 'r') as new_file:
@@ -526,12 +580,15 @@ def main():
 
     start_time = time.time()
     logfile = "/home/cliu/Documents/SC-1/messages.1"
+
     extractor = LogTemplateExtractor(logfile)
     # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
-    extractor.generate_sequence(logfile,
+    # extractor.generate_search_dict(print_search_dict=True,
+                                #    print_clusters=True, print_templates=True)
+    extractor.generate_sequence(logfile, print_search_dict=True,
                                 print_clusters=True, print_templates=True)
     stop_time = time.time()
 
@@ -543,9 +600,14 @@ def main():
 
     # ---------------------------- For debugging ---------------------------- #
 
-    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
-        # for line in in_file:
-            # print re.split(r'([*\s,:()\[\]=|/\\{}\'\"<>]+)', line)
+    # test_dict = {}
+    #
+    # for i in range(0, 100):
+    #     test_dict.setdefault(i%5, [i]).append(i)
+    #
+    # for a in test_dict:
+    #     print a
+    #     print test_dict[a]
 
     # ---------------------------- For debugging ---------------------------- #
 
