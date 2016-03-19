@@ -48,6 +48,8 @@ class LogTemplateExtractor(object):
             this distance_threshold are considered to be similar. Default: 0.1
         ignored_chars: an integer, how many chars are ignored from the beginning
             of a log (because of the time-stamp, server-name, etc.) Default: 21
+        template_dict: a dictionary, for storing all the clustered log templates
+            and their IDs
     """
     def __init__(self, logfile):
         """
@@ -59,11 +61,13 @@ class LogTemplateExtractor(object):
         self.seqfile = "/home/cliu/Documents/SC-1/sequence"
 
         # self.delimiter = r'[\s,:()\[\]=|/\\{}\'\"<>]+'  # ,:()[]=|/\{}'"<>
-        self.delimiter_kept = r'([\s,:()\[\]=|/\\{}\'\"<>]+)'
+        self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>]+)'
 
         self.distance_threshold = 0.1
 
         self.ignored_chars = 21
+
+        self.template_dict = {}
 
     def set_logfile(self, logfile):
         """
@@ -361,6 +365,7 @@ class LogTemplateExtractor(object):
     def log_clustering(self, print_clusters=False):
         """
         Similarity checks and clustering after partitioning based on command.
+        Cluster ID starts from 1, all integers.
         """
         # clusters based on command and log length
         command_cluster = self.partition_by_command()
@@ -368,7 +373,7 @@ class LogTemplateExtractor(object):
         # dictionary of the log clusters
         cluster_dict = {}
         # keep track of the log cluster number
-        cluster_num = 0
+        cluster_num = 1
 
         for i in command_cluster:
             one_cluster_dict = {}
@@ -445,36 +450,37 @@ class LogTemplateExtractor(object):
         Abstract the template representation from each of the clusters.
         """
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
-        template_dict = {}
+        # template_dict = {}
 
         # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
-            template_dict.setdefault(i, self.log_template(cluster_dict[i]))
+            self.template_dict.setdefault(i, self.log_template(cluster_dict[i]))
 
         # print the template representations
         if print_templates:
             with open(self.template_file, 'w') as template_file:
-                for i in template_dict:
+                for i in self.template_dict:
                     template_file.write(str(i) + '\n')
-                    for item in template_dict[i]:
+                    for item in self.template_dict[i]:
                         template_file.write(item)
 
-        print "Number of tempaltes: %d" %len(template_dict)
+        print "Number of tempaltes: %d" %len(self.template_dict)
 
-        return template_dict
+        return self.template_dict
 
 
     def generate_sequence(self, new_logfile, print_sequence=True,
                           print_clusters=False, print_templates=False):
         """
         Generate the log sequence based on previous generated templates and
-        new input log files
+        new input log files.
+        Either: find the correct ID for each of the new log;
+        Or: put the un-matched logs into the cluster '0', representing 'unknown'
         """
-        template_dict = self.discover_template(print_clusters=True,
-                                               print_templates=True)
+        self.discover_template(print_clusters=True, print_templates=True)
 
         # print the template representations
-        with open(new_logfile, 'r') as seq_file:
+        with open(new_logfile, 'r') as new_file:
             with open(self.seqfile, 'w') as seq_file:
                 pass
 
@@ -502,6 +508,8 @@ def main():
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
+    extractor.generate_sequence(logfile, print_sequence=True,
+                                print_clusters=True, print_templates=True)
     stop_time = time.time()
 
     print "\n--- %s seconds ---\n" % (stop_time - start_time)
@@ -512,7 +520,9 @@ def main():
 
     # ---------------------------- For debugging ---------------------------- #
 
-
+    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
+        # for line in in_file:
+            # print re.split(r'([*\s,:()\[\]=|/\\{}\'\"<>]+)', line)
 
     # ---------------------------- For debugging ---------------------------- #
 
