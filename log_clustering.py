@@ -549,8 +549,10 @@ class LogTemplateExtractor(object):
         Or: put the un-matched logs into the cluster '0', representing 'unknown'
         """
 
+        # Generate the search_dict if it is empty.
         if not self.search_dict:
-            print "Generate the search_dict first."
+            print ("The search dictionary is empty.\n"
+                   "\nGenerate the search_dict now...\n")
             self.generate_search_dict(self.search_dict_file,
                                       print_search_dict=print_search_dict,
                                       print_clusters=print_clusters,
