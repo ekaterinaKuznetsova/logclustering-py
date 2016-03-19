@@ -316,6 +316,36 @@ class LogTemplateExtractor(object):
 
         return mini[1], mini[0]
 
+    def add_log(self, added_line, command_cluster):
+        """
+        Add this log into partition, or create a new partition
+        """
+        # pattern for extracting the command.
+        # the command token could contain English letters, '-', '_' and '.'
+        # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
+        # mmas_syslog_control_setup.sh, etc.
+        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
+
+        # extract command
+        command = re.match(cmd_pattern, added_line[21:]).group(1)
+        # tokenize the log message
+        line_tokens = [t for t in
+                       re.split(self.delimiter_kept,
+                                added_line[self.ignored_chars:])
+                       if t is not '']
+        # convert numbers, hexs, ip address, pci address to *
+        line_tokens = self.to_wildcard(line_tokens)
+
+        # get the length of this token list
+        length = len(line_tokens)
+
+        # if this cluster (command, length) existing,
+        # append current log into its cluster;
+        # if not, create a new cluster, key is (command, length),
+        # initial value is [current log]
+        command_cluster.setdefault(
+            (command, length), []).append(line_tokens)
+
     def partition_by_command(self):
         """
         First partition the original logs based on their command type and the
@@ -330,12 +360,6 @@ class LogTemplateExtractor(object):
         # dictionary of the partitions divided based on
         # the tuple of command type and log length
         command_cluster = {}
-
-        # pattern for extracting the command.
-        # the command token could contain English letters, '-', '_' and '.'
-        # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
-        # mmas_syslog_control_setup.sh, etc.
-        pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
 
         # keep track of the the number of each log
         current_num = 0
@@ -361,35 +385,11 @@ class LogTemplateExtractor(object):
                     added_line = added_line.rstrip() + ' | ' + line
                     continue
                 else:
-                    # extract command
-                    command = re.match(pattern, added_line[21:]).group(1)
-                    # tokenize the log message
-                    line_tokens = [t for t in
-                                   re.split(self.delimiter_kept,
-                                            added_line[self.ignored_chars:])
-                                   if t is not '']
-                    # convert numbers, hexs, ip address, pci address to *
-                    line_tokens = self.to_wildcard(line_tokens)
-                    # get the length of this token list
-                    length = len(line_tokens)
-
-                    # if this cluster (command, length) existing,
-                    # append current log into its cluster;
-                    # if not, create a new cluster, key is (command, length),
-                    # initial value is [current log]
-                    command_cluster.setdefault(
-                        (command, length), []).append(line_tokens)
-
+                    self.add_log(added_line, command_cluster)
                     added_line = line
 
-            # Add the last line
-            command = re.match(pattern, added_line[21:]).group(1)
-            line_tokens = self.to_wildcard(
-                re.split(self.delimiter_kept, added_line[self.ignored_chars:]))
-            length = len(line_tokens)
-
-            command_cluster.setdefault((command, length),
-                                       []).append(line_tokens)
+            # Take the last line into account
+            self.add_log(added_line, command_cluster)
 
         return command_cluster
 
@@ -554,6 +554,52 @@ class LogTemplateExtractor(object):
         else:
             return False
 
+    def match_log(self, added_line, seq_file):
+        """
+        Match this log with the logs in search_dict
+        """
+        is_matched = False
+
+        # regex for extracting command
+        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
+        # extract command
+        command = re.match(cmd_pattern, added_line[21:]).group(1)
+        # tokenize the log message
+        line_tokens = [t for t in
+                       re.split(self.delimiter_kept,
+                                added_line[self.ignored_chars:])
+                       if t is not '']
+        # convert numbers, hexs, ip address, pci address to *
+        line_tokens = self.to_wildcard(line_tokens)
+        # get the length of this token list
+        length = len(line_tokens)
+
+        # find this log in the search_dict
+        if self.search_dict.has_key((command, length)):
+            compare_list = self.search_dict[(command, length)]
+            for id_ in compare_list:
+                compare_tokens = [
+                    t for t in
+                    re.split(self.delimiter_kept,
+                             self.template_dict[id_])
+                    if t is not '']
+                compare_result = [
+                    True if self.compare_two_tokens(a, b)
+                    else False
+                    for a, b in zip(compare_tokens,
+                                    line_tokens)]
+                if False not in compare_result:
+                    is_matched = True
+                if is_matched:
+                    seq_file.write(str(id_) + '\n')
+                    # print str(current_num) + ' True'
+                    break
+
+            if not is_matched:
+                seq_file.write('0\n')
+                # print str(current_num) + ' False'
+
+
     def generate_sequence(self, new_logfile, print_search_dict=False,
                           print_clusters=False, print_templates=False):
         """
@@ -573,8 +619,8 @@ class LogTemplateExtractor(object):
                                       print_templates=print_templates)
 
         # current_num = 0
-        # regex for extracting command
-        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
+
+        print "\nStart to generate sequence..."
 
         # print the template representations
         with open(new_logfile, 'r') as new_file:
@@ -589,7 +635,6 @@ class LogTemplateExtractor(object):
 
                 # read th following lines
                 for line in new_file:
-                    is_matched = False
                     # current_num = current_num + 1
 
                     # if the current line is not with time-stamp, it will be
@@ -599,77 +644,14 @@ class LogTemplateExtractor(object):
                         added_line = added_line.rstrip() + ' | ' + line
                         continue
                     else:
-                        # extract command
-                        command = re.match(cmd_pattern,
-                                           added_line[21:]).group(1)
-                        # tokenize the log message
-                        line_tokens = [t for t in
-                                       re.split(self.delimiter_kept,
-                                                added_line[self.ignored_chars:])
-                                       if t is not '']
-                        # convert numbers, hexs, ip address, pci address to *
-                        line_tokens = self.to_wildcard(line_tokens)
-                        # get the length of this token list
-                        length = len(line_tokens)
-
-                        # find this log in the search_dict
-                        if self.search_dict.has_key((command, length)):
-                            compare_list = self.search_dict[(command, length)]
-                            for id_ in compare_list:
-                                compare_tokens = [
-                                    t for t in
-                                    re.split(self.delimiter_kept,
-                                             self.template_dict[id_])
-                                    if t is not '']
-                                compare_result = [
-                                    True if self.compare_two_tokens(a, b)
-                                    else False
-                                    for a, b in zip(compare_tokens,
-                                                    line_tokens)]
-                                if False not in compare_result:
-                                    is_matched = True
-                                if is_matched:
-                                    seq_file.write(str(id_) + '\n')
-                                    # print str(current_num) + ' True'
-                                    break
-
-                            if not is_matched:
-                                seq_file.write('0\n')
-                                # print str(current_num) + ' False'
-
+                        # match the log with search_dict
+                        self.match_log(added_line, seq_file)
                         added_line = line
 
-                # Add the last line
-                command = re.match(cmd_pattern, added_line[21:]).group(1)
-                line_tokens = self.to_wildcard(
-                    re.split(self.delimiter_kept,
-                             added_line[self.ignored_chars:]))
-                length = len(line_tokens)
+                # Take the last line into account
+                self.match_log(added_line, seq_file)
 
-                is_matched = False
-                if self.search_dict.has_key((command, length)):
-                    compare_list = self.search_dict[(command, length)]
-                    for id_ in compare_list:
-                        compare_tokens = [
-                            t for t in
-                            re.split(self.delimiter_kept,
-                                     self.template_dict[id_])
-                            if t is not '']
-                        compare_result = [
-                            True if self.compare_two_tokens(a, b)
-                            else False
-                            for a, b in zip(compare_tokens, line_tokens)]
-                        if False not in compare_result:
-                            is_matched = True
-                        if is_matched:
-                            seq_file.write(str(id_) + '\n')
-                            # print str(current_num) + ' True'
-                            break
-
-                    if not is_matched:
-                        seq_file.write('0\n')
-                        # print str(current_num) + ' False'
-
+        print "Sequece generated!\n"
 
 
 def main():
