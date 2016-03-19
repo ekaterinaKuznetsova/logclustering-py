@@ -398,7 +398,7 @@ class LogTemplateExtractor(object):
         Similarity checks and clustering after partitioning based on command.
         Cluster ID starts from 1, all integers.
         """
-        print "    |-Start to cluster logs..."
+        print "\n    |-Start to cluster logs..."
 
         # clusters based on command and log length
         command_cluster = self.partition_by_command()
@@ -485,7 +485,7 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         # template_dict = {}
 
-        print "    |-Start to extract templates..."
+        print "\n    |-Start to extract templates..."
         # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
             self.template_dict.setdefault(i, self.log_template(cluster_dict[i]))
@@ -507,7 +507,7 @@ class LogTemplateExtractor(object):
         """
         Generate the hashtable for matching new logs and ID them.
         """
-        print "\nStart to generate the search_dict now...\n"
+        print "\nStart to generate the search dictionary now..."
 
         self.discover_template(print_clusters=print_clusters,
                                print_templates=print_templates)
@@ -542,7 +542,7 @@ class LogTemplateExtractor(object):
                     for item in self.search_dict[i]:
                         search_table_file.write(str(item) + ' ')
 
-        print "\nsearch_dict generated.\n"
+        print "\nTemplate search dictionary generated!\n"
 
         return self.search_dict
 
@@ -618,7 +618,7 @@ class LogTemplateExtractor(object):
 
         # Generate the search_dict if it is empty.
         if not self.search_dict:
-            print "The search dictionary is empty.\n"
+            print "The template search dictionary is empty.\n"
             self.generate_search_dict(self.search_dict_file,
                                       print_search_dict=print_search_dict,
                                       print_clusters=print_clusters,
@@ -682,9 +682,9 @@ def main():
                                 print_clusters=True, print_templates=True)
     stop_time = time.time()
 
-    print "\n--- %s seconds ---\n" % (stop_time - start_time)
+    print "\nStop..."
 
-    print "\nStop...\n"
+    print "\n--- %s seconds ---\n" % (stop_time - start_time)
 
 
     # ---------------------------- For debugging ---------------------------- #
