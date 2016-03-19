@@ -398,6 +398,8 @@ class LogTemplateExtractor(object):
         Similarity checks and clustering after partitioning based on command.
         Cluster ID starts from 1, all integers.
         """
+        print "    |-Start to cluster logs..."
+
         # clusters based on command and log length
         command_cluster = self.partition_by_command()
 
@@ -436,7 +438,7 @@ class LogTemplateExtractor(object):
                     for item in cluster_dict[i]:
                         cluster_file.write(''.join(item).rstrip() + '\n')
 
-        print "Number of clusters: %d" %len(cluster_dict)
+        print "    |-Number of clusters generated: %d" %len(cluster_dict)
 
         return cluster_dict
 
@@ -483,6 +485,7 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         # template_dict = {}
 
+        print "    |-Start to extract templates..."
         # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
             self.template_dict.setdefault(i, self.log_template(cluster_dict[i]))
@@ -495,7 +498,7 @@ class LogTemplateExtractor(object):
                     for item in self.template_dict[i]:
                         template_file.write(item)
 
-        print "Number of tempaltes: %d" %len(self.template_dict)
+        print "    |-Number of tempaltes extracted: %d" %len(self.template_dict)
 
         return self.template_dict
 
@@ -504,6 +507,8 @@ class LogTemplateExtractor(object):
         """
         Generate the hashtable for matching new logs and ID them.
         """
+        print "\nStart to generate the search_dict now...\n"
+
         self.discover_template(print_clusters=print_clusters,
                                print_templates=print_templates)
 
@@ -536,6 +541,8 @@ class LogTemplateExtractor(object):
                     search_table_file.write('\n' + str(i) + '\n')
                     for item in self.search_dict[i]:
                         search_table_file.write(str(item) + ' ')
+
+        print "\nsearch_dict generated.\n"
 
         return self.search_dict
 
@@ -611,8 +618,7 @@ class LogTemplateExtractor(object):
 
         # Generate the search_dict if it is empty.
         if not self.search_dict:
-            print ("The search dictionary is empty.\n"
-                   "\nGenerate the search_dict now...\n")
+            print "The search dictionary is empty.\n"
             self.generate_search_dict(self.search_dict_file,
                                       print_search_dict=print_search_dict,
                                       print_clusters=print_clusters,
@@ -654,6 +660,7 @@ class LogTemplateExtractor(object):
         print "Sequece generated!\n"
 
 
+
 def main():
     """
     Main function
@@ -680,14 +687,11 @@ def main():
     print "\nStop...\n"
 
 
+    # ---------------------------- For debugging ---------------------------- #
+
 
     # ---------------------------- For debugging ---------------------------- #
 
-    # with open("/home/cliu/Documents/SC-1/install.txt") as in_file:
-        # for line in in_file:
-            # print re.split(r'([*\s,:()\[\]=|/\\{}\'\"<>])', line)
-
-    # ---------------------------- For debugging ---------------------------- #
 
 
 if __name__ == "__main__":
