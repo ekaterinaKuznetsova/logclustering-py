@@ -1,7 +1,20 @@
 """
-This program is used to cluster logs based on their similarity.
-The similarity between two logs is measured based the editing distance between.
-The basic unit of a log is not a character but a token.
+This program is used to cluster logs based on their similarity. The similarity
+between two logs is measured based the editing distance between. The basic unit
+of a log is not a character but a token.
+
+After the clustering, each of the generated cluster will be labeled with integer
+IDs starts from 1. ID 0 represents unknown log for further log matching. These
+IDs will be stored in a dictionary for matching new logs.
+
+The method 'levenshteinNumPy(source, target)' [1] implemented here is very
+slower than the package 'editdistance' [2], since the source code of
+'editdistance' is written in C++. However, if we would like to modify the
+levenshtein algorithm by adding weights to different token classes
+'levenshteinNumPy(source, target)' is easier to change the code.
+
+Author: Chang Liu (fluency03)
+Data: 2016-03-11
 
 [1] Wikibooks: Algorithm Implementation/Strings/Levenshtein distance - Python:
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#Python
@@ -13,23 +26,13 @@ https://github.com/aflc/editdistance
 module, available in Python.
 https://github.com/dateutil/dateutil
 
-The method 'levenshteinNumPy(source, target)' implemented here is very slower
-than the package 'editdistance', since the source code of 'editdistance' is
-written in C++. However, if we would like to modify the levenshtein algorithm
-by adding weights to different token classes 'levenshteinNumPy(source, target)'
-is easier to change the code.
-
-Author: Chang Liu (fluency03)
-Data: 2016-03-11
 """
 
 
 import editdistance
 from dateutil.parser import parse as timeparser
-# from numbers import Number
 import numpy as np
 import re
-# import sys
 import socket
 import time
 
