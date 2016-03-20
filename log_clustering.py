@@ -368,21 +368,21 @@ class LogTemplateExtractor(object):
         command_cluster = {}
 
         # keep track of the the number of each log
-        current_num = 0
+        # current_num = 0
 
         with open(self.logfile) as in_file:
             # read the first line
             added_line = in_file.readline()
-            current_num = current_num + 1
+            # current_num = current_num + 1
 
             # the real first line is the first log appearing with time-stamp
             while not self.is_timestamp(added_line[:16]):
                 added_line = in_file.readline()
-                current_num = current_num + 1
+                # current_num = current_num + 1
 
             # read th following lines
             for line in in_file:
-                current_num = current_num + 1
+                # current_num = current_num + 1
 
                 # if the current line is not with time-stamp, it will be
                 # added together to its previous logs until the the previous
@@ -392,6 +392,7 @@ class LogTemplateExtractor(object):
                     continue
                 else:
                     self.add_log(added_line, command_cluster)
+                    # update added_line
                     added_line = line
 
             # Take the last line into account
@@ -456,43 +457,39 @@ class LogTemplateExtractor(object):
         Update the positions where >1 unique tokens by wildcard *.
         Generate the template representation for this cluster.
         """
-        # the first log represent this cluster
-        one_line_tokens = cluster[0]
+        # the first log represents this cluster
+        line_tokens = cluster[0]
         # get the length
-        len_line = len(one_line_tokens)
+        length = len(line_tokens)
 
         # a list of dictionaries represents at each of the token position
         # how many different tokens there are, and what are they
         token_collection = []
-
         for line in cluster:
-            for i in range(0, len_line):
+            for i in range(0, length):
                 token = line[i]
                 if len(token_collection) > i:
                     token_collection[i].setdefault(token)
                 else:
                     token_collection.append({token: None})
 
-        # cardinality = []
-        # for i in range(0, len_line):
-            # cardinality.append(str(len(token_collection[i])))
-
         # for positions sharing more than one unique token,
         # regard them as variables and convert them into *
-        for i in range(0, len_line):
+        for i in range(0, length):
             if len(token_collection[i]) is not 1:
-                one_line_tokens[i] = '*'
+                line_tokens[i] = '*'
 
-        return ''.join(one_line_tokens).rstrip() + '\n'
+        return ''.join(line_tokens).rstrip() + '\n'
 
     def discover_template(self, print_clusters=False, print_templates=False):
         """
         Abstract the template representation from each of the clusters.
         """
+        # get the log cluster dictionary
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
-        # template_dict = {}
 
         print "\n    |-Extracting templates..."
+
         # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
             self.template_dict.setdefault(i, self.log_template(cluster_dict[i]))
@@ -516,6 +513,7 @@ class LogTemplateExtractor(object):
         Generate the hashtable for matching new logs and ID them.
         """
 
+        # Generate the template dictionary if it is empty.
         if not self.template_dict:
             print "The template representation dictionary is empty.\n"
             self.discover_template(print_clusters=print_clusters,
@@ -526,7 +524,9 @@ class LogTemplateExtractor(object):
         # regex for extracting command
         cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
 
-
+        # go through each of the log templates in the dictionary
+        # and put their IDs into the search dictionary according to
+        # the command and tokenized log length
         for id_ in self.template_dict:
             # get te tempalte representation
             tempalte = self.template_dict[id_]
@@ -536,7 +536,6 @@ class LogTemplateExtractor(object):
 
             # get the token list of this template
             tempalte_tokens = self.tokenize(tempalte)
-
             # get the length of this template
             length = len(tempalte_tokens)
 
@@ -588,19 +587,32 @@ class LogTemplateExtractor(object):
 
         # find this log in the search_dict
         if self.search_dict.has_key((command, length)):
-            compare_list = self.search_dict[(command, length)]
-            for id_ in compare_list:
-                compare_tokens = self.tokenize(self.template_dict[id_])
-                compare_result = [True if self.compare_two_tokens(a, b)
-                                  else False for a, b in zip(compare_tokens,
-                                                             line_tokens)]
-                if False not in compare_result:
+            matched_list = self.search_dict[(command, length)]
+
+            # compare the current new log to all tempaltes
+            # in the selected matched_list
+            for id_ in matched_list:
+                # each of the tokenized template to be compared
+                to_be_compared = self.tokenize(self.template_dict[id_])
+
+                # put False into the compare result, if there is not-matching
+                # between two tokens  at certain position
+                compare_result = [False for a, b in zip(to_be_compared,
+                                                        line_tokens)
+                                  if not self.compare_two_tokens(a, b)]
+
+                # if compare_result is empty, that means they are matched
+                if not compare_result:
                     is_matched = True
+
+                # if they are matched, ouput the template ID
                 if is_matched:
                     seq_file.write(str(id_) + '\n')
                     # print str(current_num) + ' True'
                     break
 
+            # if no match, that means this log is a new one
+            # output the tmplate ID is '0', which means 'unknown'
             if not is_matched:
                 seq_file.write('0\n')
                 # print str(current_num) + ' False'
@@ -643,15 +655,16 @@ class LogTemplateExtractor(object):
                 for line in new_file:
                     # current_num = current_num + 1
 
-                    # if the current line is not with time-stamp, it will be
-                    # added together to its previous logs until the the previous
-                    # nearest log with time-stamp
+                    # if the current line is not starting with time-stamp, it
+                    # will be added together to its previous logs until the
+                    # previous nearest log with time-stamp
                     if not self.is_time(line[:16]):
                         added_line = added_line.rstrip() + ' | ' + line
                         continue
                     else:
                         # match the log with search_dict
                         self.match_log(added_line, seq_file)
+                        # update added_line
                         added_line = line
 
                 # Take the last line into account
@@ -671,7 +684,6 @@ def main():
     logfile = "/home/cliu/Documents/SC-1/messages.1"
 
     extractor = LogTemplateExtractor(logfile)
-    # extractor.log_clustering_slow()
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
