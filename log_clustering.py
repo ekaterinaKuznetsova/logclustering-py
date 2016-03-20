@@ -151,7 +151,7 @@ class LogTemplateExtractor(object):
         # added optimization that we only need the last two rows
         # of the matrix.
         previous_row = np.arange(target.size + 1)
-        for one_source in source:
+        for item in source:
             # Insertion (target grows longer than source):
             current_row = previous_row + 1
 
@@ -160,7 +160,7 @@ class LogTemplateExtractor(object):
             # are different (cost of 1), or are the same (cost of 0).
             current_row[1:] = np.minimum(current_row[1:],
                                          np.add(previous_row[:-1],
-                                                target != one_source))
+                                                target != item))
 
             # Deletion (target grows shorter than source):
             current_row[1:] = np.minimum(current_row[1:],
@@ -281,6 +281,12 @@ class LogTemplateExtractor(object):
 
         return tokens
 
+    def tokenize(self, line):
+        """
+        Tokenize the line
+        """
+        return [t for t in re.split(self.delimiter_kept, line) if t is not '']
+
     def min_distance(self, added_line, one_cluster_dict):
         """
         Calculate the minimal distance between the log and all the sub-clusters
@@ -293,8 +299,8 @@ class LogTemplateExtractor(object):
 
         len_line = len(added_line)
 
-        for cluster_num in one_cluster_dict:
-            cluster = one_cluster_dict[cluster_num]
+        for i in one_cluster_dict:
+            cluster = one_cluster_dict[i]
 
             # the first log of this cluster represents this cluster
             cluster_line = cluster[0]
@@ -311,7 +317,7 @@ class LogTemplateExtractor(object):
             else:
                 dis_ratio = float(1)
 
-            distance[cluster_num] = dis_ratio
+            distance[i] = dis_ratio
 
         # find the minimal distance and its key value
         mini = min(distance.iteritems(), key=lambda x: x[1])
@@ -329,12 +335,10 @@ class LogTemplateExtractor(object):
         cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
 
         # extract command
-        command = re.match(cmd_pattern, added_line[21:]).group(1)
+        command = re.match(cmd_pattern,
+                           added_line[self.ignored_chars:]).group(1)
         # tokenize the log message
-        line_tokens = [t for t in
-                       re.split(self.delimiter_kept,
-                                added_line[self.ignored_chars:])
-                       if t is not '']
+        line_tokens = self.tokenize(added_line[self.ignored_chars:])
         # convert numbers, hexs, ip address, pci address to *
         line_tokens = self.to_wildcard(line_tokens)
 
@@ -400,7 +404,7 @@ class LogTemplateExtractor(object):
         Similarity checks and clustering after partitioning based on command.
         Cluster ID starts from 1, all integers.
         """
-        print "\n    |-Start to cluster logs..."
+        print "    |-Clustering logs..."
 
         # clusters based on command and log length
         command_cluster = self.partition_by_command()
@@ -434,7 +438,7 @@ class LogTemplateExtractor(object):
 
         # print the clusters
         if print_clusters:
-            print "    |-Writing the clusters into %s ..." %self.cluster_file
+            print "    |-Write the clusters into %s ..." %self.cluster_file
             with open(self.cluster_file, 'w') as cluster_file:
                 for i in cluster_dict:
                     cluster_file.write(str(i) + '\n')
@@ -461,9 +465,9 @@ class LogTemplateExtractor(object):
         # how many different tokens there are, and what are they
         token_collection = []
 
-        for item in cluster:
+        for line in cluster:
             for i in range(0, len_line):
-                token = item[i]
+                token = line[i]
                 if len(token_collection) > i:
                     token_collection[i].setdefault(token)
                 else:
@@ -488,14 +492,14 @@ class LogTemplateExtractor(object):
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
         # template_dict = {}
 
-        print "\n    |-Start to extract templates..."
+        print "\n    |-Extracting templates..."
         # get each of the tempalte representations into the template_dict
         for i in cluster_dict:
             self.template_dict.setdefault(i, self.log_template(cluster_dict[i]))
 
         # print the template representations
         if print_templates:
-            print "    |-Writing the templates into %s ..." %self.template_file
+            print "    |-Write the templates into %s ..." %self.template_file
             with open(self.template_file, 'w') as template_file:
                 for i in self.template_dict:
                     template_file.write(str(i) + '\n')
@@ -511,36 +515,37 @@ class LogTemplateExtractor(object):
         """
         Generate the hashtable for matching new logs and ID them.
         """
-        print "\nStart to generate the search dictionary now..."
 
-        self.discover_template(print_clusters=print_clusters,
-                               print_templates=print_templates)
+        if not self.template_dict:
+            print "The template representation dictionary is empty.\n"
+            self.discover_template(print_clusters=print_clusters,
+                                   print_templates=print_templates)
+
+        print "\n    |-Generating the search dictionary..."
 
         # regex for extracting command
         cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
 
 
-        for tempalte_id in self.template_dict:
+        for id_ in self.template_dict:
             # get te tempalte representation
-            tempalte = self.template_dict[tempalte_id]
+            tempalte = self.template_dict[id_]
             # print tempalte_id
             # get the command of thie template
             command = re.match(cmd_pattern, tempalte).group(1)
 
             # get the token list of this template
-            tempalte_tokens = [t for t in
-                               re.split(self.delimiter_kept, tempalte)
-                               if t is not '']
+            tempalte_tokens = self.tokenize(tempalte)
 
             # get the length of this template
             length = len(tempalte_tokens)
 
             self.search_dict.setdefault((command, length),
-                                        []).append(tempalte_id)
+                                        []).append(id_)
 
         # print the template search dictionary
         if print_search_dict:
-            print ("\nWriting the search dictionary into %s ..."
+            print ("    |-Writing the search dictionary into %s ..."
                    %search_dict_file)
             with open(search_dict_file, 'w') as search_dict_file:
                 for i in self.search_dict:
@@ -548,7 +553,7 @@ class LogTemplateExtractor(object):
                     for item in self.search_dict[i]:
                         search_dict_file.write(str(item) + ' ')
 
-        print "Template search dictionary generated!\n"
+        print "    |-Template search dictionary generated!\n"
 
         return self.search_dict
 
@@ -556,32 +561,26 @@ class LogTemplateExtractor(object):
     def compare_two_tokens(cls, token1, token2):
         """
         Compare two string tokens:
-        if either of them is *, then regard them are equal, return True;
-        if none of them is * but they are equal, return True;
+        if either of them is *, or they are equal, return True;
         else, return False.
         """
-        if token1 == '*' or token2 == '*':
-            return True
-        elif token1 == token2:
-            return True
-        else:
-            return False
+        return token1 == '*' or token2 == '*' or token1 == token2
 
     def match_log(self, added_line, seq_file):
         """
         Match this log with the logs in search_dict
         """
+        # match flag
         is_matched = False
 
         # regex for extracting command
         cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
         # extract command
-        command = re.match(cmd_pattern, added_line[21:]).group(1)
+        command = re.match(cmd_pattern,
+                           added_line[self.ignored_chars:]).group(1)
+
         # tokenize the log message
-        line_tokens = [t for t in
-                       re.split(self.delimiter_kept,
-                                added_line[self.ignored_chars:])
-                       if t is not '']
+        line_tokens = self.tokenize(added_line[self.ignored_chars:])
         # convert numbers, hexs, ip address, pci address to *
         line_tokens = self.to_wildcard(line_tokens)
         # get the length of this token list
@@ -591,16 +590,10 @@ class LogTemplateExtractor(object):
         if self.search_dict.has_key((command, length)):
             compare_list = self.search_dict[(command, length)]
             for id_ in compare_list:
-                compare_tokens = [
-                    t for t in
-                    re.split(self.delimiter_kept,
-                             self.template_dict[id_])
-                    if t is not '']
-                compare_result = [
-                    True if self.compare_two_tokens(a, b)
-                    else False
-                    for a, b in zip(compare_tokens,
-                                    line_tokens)]
+                compare_tokens = self.tokenize(self.template_dict[id_])
+                compare_result = [True if self.compare_two_tokens(a, b)
+                                  else False for a, b in zip(compare_tokens,
+                                                             line_tokens)]
                 if False not in compare_result:
                     is_matched = True
                 if is_matched:
@@ -632,7 +625,7 @@ class LogTemplateExtractor(object):
 
         # current_num = 0
 
-        print "\nStart to generate sequence..."
+        print "Start to generate sequence."
         print "Writing the sequence into %s ..." %self.seqfile
 
         # print the template representations
@@ -688,9 +681,9 @@ def main():
                                 print_clusters=True, print_templates=True)
     stop_time = time.time()
 
-    print "\nStop..."
+    print "Stop...\n"
 
-    print "\n--- %s seconds ---\n" % (stop_time - start_time)
+    print "--- %s seconds ---\n" % (stop_time - start_time)
 
 
     # ---------------------------- For debugging ---------------------------- #
