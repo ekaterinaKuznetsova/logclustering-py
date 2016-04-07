@@ -46,28 +46,35 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     A log template extractor.
 
     Attributes:
-        logfile: a string, the source log file name/path.
-        template_file: a string, the output file for storing log templates.
-        cluster_file: a string, the output file for storing clustered logs.
-        seqfile: a string, the output file for storing log sequences.
-        delimiter_kept: regex, delimiters for dividing a log into tokens.
-        distance_threshold: a float, two logs with editing distance less than
-            this distance_threshold are considered to be similar. Default: 0.1
-        ignored_chars: an integer, how many chars are ignored from the beginning
-            of a log (because of the time-stamp, server-name, etc.) Default: 21
-        template_dict: a dictionary, storing all the clustered log templates
-            and their IDs
-        search_dict: a dictionary, stroing tempalte IDs for new log matching
+        logfile_path: {string}, the path of log files to be analyzed.
+        template_file: {string}, the output file for storing log templates.
+        cluster_file: {string}, the output file for storing clustered logs.
+        seqfile_path: {string}, the output file for storing log sequences.
+        search_dict_file: {string}, the output file for storing search
+            dictionary.
+        delimiter_kept: {regex}, delimiters for dividing a log into tokens.
+        cmd_regex: {regex}, regular expression for extracting command token
+            from a log message.
+        distance_threshold: {float}, two logs with editing distance less than
+            this distance_threshold are considered to be similar. Default: 0.1.
+        ignored_chars: {integer}, how many chars are ignored from the beginning
+            of a log (because of the time-stamp, server-name, etc.) Default: 21.
+        template_dict: {dictionary}, storing all the clustered log templates
+            and their IDs.
+        search_dict: {dictionary}, stroing tempalte IDs for new log matching.
     """
     def __init__(self, logfile_path):
         """
         Inits LogTemplateExtractor class.
+
+        Aruguments:
+            logfile_path: {string}, the path of log files to be be analyzed.
         """
         self.logfile_path = logfile_path
         self.template_file = "./template"
         self.cluster_file = "./clusters"
-        self.seqfile_path = "./sequences/"
         self.search_dict_file = "./search_dict"
+        self.seqfile_path = "./sequences/"
 
         # regex of delimiters for tokenization
         self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
@@ -86,12 +93,19 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     def set_logfile_path(self, logfile_path):
         """
         Set the source log file (name/path) which is going to be analyzed.
+
+        Aruguments:
+            logfile_path: {string}, the path of log files to be be analyzed.
         """
         self.logfile_path = logfile_path
 
     def set_seqfile_path(self, seqfile_path):
         """
         Set the sequence log file (name/path) which final sequence of the logs.
+
+        Aruguments:
+            seqfile_path: {string}, the path of log files to be be matched for
+                generating sequences.
         """
         self.seqfile_path = seqfile_path
 
@@ -99,6 +113,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Set the search_dict file (name/path) which search dictionary for
         new input log files.
+
+        Aruguments:
+            search_dict_file: {string}, the name/path of search dictionary file.
         """
         self.search_dict_file = search_dict_file
 
@@ -106,6 +123,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Set the template log file (name/path) which tempalte IDs and
         their representations.
+
+        Aruguments:
+            template_file: {string}, the name/path of template/IDs file.
         """
         self.template_file = template_file
 
@@ -113,13 +133,18 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Set the log cluster file (name/path) which template ID and the
         logs contained in each of the clusters.
+
+        Aruguments:
+            cluster_file: {string}, the name/path of clustered logs file.
         """
         self.cluster_file = cluster_file
 
     def set_delimiter(self, delimiter_kept):
         """
-        Set the delimiters (in regular expression)
-        for dividing one log into tokens.
+        Set the delimiters (in regex) for dividing one log into tokens.
+
+        Aruguments:
+            delimiter_kept: {regex}, delimiters for dividing a log into tokens.
         """
         self.delimiter_kept = delimiter_kept
 
@@ -128,12 +153,18 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         Set the distance threshold 0 ~ 1 used for creating new cluster.
         The less the threshold is, the more similar two logs have to be
         if they want to be clustered together.
+
+        Aruguments:
+            distance_threshold: {float}, distance_threshold to be set.
         """
         self.distance_threshold = distance_threshold
 
     def set_ignored_chars(self, ignored_chars):
         """
         Set the ignored chars at the beginning of each log.
+
+        Aruguments:
+            ignored_chars: {integer}, number of ignored chars in the beginning.
         """
         self.ignored_chars = ignored_chars
 
@@ -142,6 +173,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         Dynamic Programming algorithm, with the added optimization that only
         the last two rows of the dynamic programming matrix are needed for
         the computation. Vectorized version using NumPy.
+
+        Aruguments:
+            source, target: {list}, two lists of tokens to be compared.
         """
         if len(source) < len(target):
             return self.levenshtein_numpy(target, source)
@@ -182,6 +216,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     def is_timestamp(cls, string):
         """
         Check whether input str is with time format like: Feb 11 05:22:51 .
+
+        Aruguments:
+            string: {string}, input string for time stamp check.
         """
         try:
             time.strptime(string, '%b %d %H:%M:%S ')
@@ -193,7 +230,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     def is_time(cls, string):
         """
         Check whether this is a time string.
-        It supports most of the time format, more than is_timestamp()
+        It supports most of the time format, more than is_timestamp().
+
+        Aruguments:
+            string: {string}, input string for time check.
         """
         try:
             timeparser(string)
@@ -204,7 +244,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     @classmethod
     def is_ipv4(cls, address):
         """
-        Check whether this is a velid ipv4 address
+        Check whether this is a velid ipv4 address.
+
+        Aruguments:
+            address: {string}, input string for ipv4 check.
         """
         try:
             socket.inet_pton(socket.AF_INET, address)
@@ -222,7 +265,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     @classmethod
     def is_ipv6(cls, address):
         """
-        Check whether this is a velid ipv6 address
+        Check whether this is a velid ipv6 address.
+
+        Aruguments:
+            address: {string}, input string for ipv4 check.
         """
         try:
             socket.inet_pton(socket.AF_INET6, address)
@@ -233,7 +279,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
 
     def is_ip_address(self, address):
         """
-        Check whether this is a valid ip address (ipv4 or ipv6)
+        Check whether this is a valid ip address (ipv4 or ipv6).
+
+        Aruguments:
+            address: {string}, input string for ip address(ipv4/ipv6) check.
         """
         return self.is_ipv4(address) or self.is_ipv6(address)
 
@@ -241,6 +290,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     def is_pci_address(cls, address):
         """
         Check whether this is a PCI address, like 0000:00:00.0
+
+        Aruguments:
+            address: {string}, input string for pci address check.
         """
         pci_addr_pattern = r'(0000):([\da-fA-F]{2}):([\da-fA-F]{2}).(\d)'
 
@@ -249,7 +301,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     @classmethod
     def is_number(cls, number):
         """
-        Check whether this is a number (int, long, float, hex)
+        Check whether this is a number (int, long, float, hex) .
+
+        Aruguments:
+            number: {string}, input string for number check.
         """
         try:
             float(number)  # for int, long, float
@@ -264,7 +319,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     @classmethod
     def contain_hex(cls, string):
         """
-        Check whether it contains hex values
+        Check whether it contains hex values.
+
+        Aruguments:
+            string: {string}, input string for hex value check.
         """
         hex_pattern = r'0x[\da-fA-F]+'
 
@@ -276,6 +334,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Replace number tokens, hex (0x...) tokens, ip addresses and
         pci addresses by wildcard symbol * .
+
+        Aruguments:
+            tokens: {list}, a list of tokens.
         """
         # hex_pattern = r'0x[\da-fA-F]+'
 
@@ -291,12 +352,21 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
 
     def tokenize(self, line):
         """
-        Tokenize the line
+        Tokenize the line.
+
+        Aruguments:
+            line: {string}, one input log message.
         """
         return [t for t in re.split(self.delimiter_kept, line) if t is not '']
 
     @classmethod
     def check_directory(cls, path):
+        """
+        Check whether the path/directory is existing. If not, create a new one.
+
+        Aruguments:
+            path: {string}, the given path/directory.
+        """
         if not os.path.exists(path):
             print "Directory '%s' does not exist. Creat it... " %path
             os.makedirs(path)
@@ -305,6 +375,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Calculate the minimal distance between the log and all the sub-clusters
             from previous pre-partitioned cluster.
+
+        Aruguments:
+            added_line: {list}, a list of tokens.
+            one_cluster_dict: {dictionary}, a dictionary for some clusters.
         Return the minimal distance and its index (key for cluster).
         """
         # dictionary of the distance between this log and
@@ -340,7 +414,13 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
 
     def add_log(self, added_line, command_cluster):
         """
-        Add this log into partition, or create a new partition
+        Add this log into partition, or create a new partition.
+
+        Aruguments:
+            added_line: {list}, a list of tokens.
+            command_cluster: {dictionary}, a dictionary for certain cluster of
+                logs with same command.
+        Return the minimal distance and its index (key for cluster).
         """
         # pattern for extracting the command.
         cmd_pattern = re.compile(self.cmd_regex)
@@ -423,6 +503,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         Similarity checks and clustering after partitioning based on command.
         Cluster ID starts from 1, all integers.
+
+        Aruguments:
+            print_clusters: {bool}, whether write the clusters into a file.
         """
         print "    |-Clustering logs..."
 
@@ -475,6 +558,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         Collect the unique tokens at each position of a log within a cluster.
         Update the positions where >1 unique tokens by wildcard *.
         Generate the template representation for this cluster.
+
+        Aruguments:
+            cluster: {dictionary}, a cluster of similar logs.
         """
         # the first log represents this cluster
         line_tokens = cluster[0]
@@ -503,6 +589,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     def discover_template(self, print_clusters=False, print_templates=False):
         """
         Abstract the template representation from each of the clusters.
+
+        Aruguments:
+            print_clusters: {bool}, whether write the clusters into a file.
+            print_templates: {bool}, whether write the templates into a file.
         """
         # get the log cluster dictionary
         cluster_dict = self.log_clustering(print_clusters=print_clusters)
@@ -530,6 +620,12 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
                              print_clusters=False, print_templates=False):
         """
         Generate the hashtable for matching new logs and ID them.
+
+        Aruguments:
+            print_search_dict: {bool}, whether write the search dictionaries
+                into a file.
+            print_clusters: {bool}, whether write the clusters into a file.
+            print_templates: {bool}, whether write the templates into a file.
         """
 
         # Generate the template dictionary if it is empty.
@@ -581,12 +677,19 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         Compare two string tokens:
         if either of them is *, or they are equal, return True;
         else, return False.
+
+        Aruguments:
+            token1, token2: {string}, two tokens two be compared.
         """
         return token1 == '*' or token2 == '*' or token1 == token2
 
     def match_log(self, added_line, seq_file):
         """
-        Match this log with the logs in search_dict
+        Match this log with the logs in search_dict.
+
+        Aruguments:
+            added_line: {string}, a line of log to be matched.
+            seq_file: {file}, output sequence file.
         """
         # match flag
         is_matched = False
@@ -644,6 +747,14 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         new input log files.
         Either: find the correct ID for each of the new log;
         Or: put the un-matched logs into the cluster '0', representing 'unknown'
+
+        Aruguments:
+            new_logfile: {string}, the path of log files to be matched for
+                generating sequences.
+            print_search_dict: {bool}, whether write the search dictionaries
+                into a file.
+            print_clusters: {bool}, whether write the clusters into a file.
+            print_templates: {bool}, whether write the templates into a file.
         """
 
         # Generate the search_dict if it is empty.
