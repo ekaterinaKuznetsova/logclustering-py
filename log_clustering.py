@@ -36,6 +36,7 @@ import os
 import re
 import socket
 import time
+import matplotlib.pyplot as plt
 import numpy as np
 import editdistance
 from dateutil.parser import parse as timeparser
@@ -809,6 +810,23 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
 
         print "Sequece generated!\n"
 
+    def generate_histogram(self):
+        """
+        Calculate the histogram for each of the generated sequence files.
+        """
+        print "Generate histogram...\n"
+        # sequence files
+        seq_files = glob.glob(self.seqfile_path + "*")
+
+        for seq_file in seq_files:
+            print "    " + seq_file
+            with open(seq_file, 'r') as seqfile:
+                sequence = [int(id_) for id_ in seqfile]
+                hist, bin_edges = np.histogram(sequence,
+                                               bins=range(max(sequence)))
+                plt.hist(hist, bins=range(max(sequence)))
+                plt.xlim(0, 500)
+                plt.show()
 
 
 def main():
@@ -818,20 +836,19 @@ def main():
     print "\nStart...\n"
 
     start_time = time.time()
-    logfile_path = "./logs/*"
 
+    logfile_path = "./logs/*"
     extractor = LogTemplateExtractor(logfile_path)
     extractor.set_template_file("./template")
     extractor.set_cluster_file("./clusters")
     extractor.set_seqfile_path("./sequences/")
     extractor.set_search_dict_file("./search_dict")
-    # extractor.partition_by_command()
-    # extractor.log_clustering()
-    # extractor.discover_template(print_clusters=True, print_templates=True)
-    # extractor.generate_search_dict(print_search_dict=True,
-                                #    print_clusters=True, print_templates=True)
-    extractor.generate_sequence(logfile_path, print_search_dict=True,
-                                print_clusters=True, print_templates=True)
+
+    # extractor.generate_sequence(logfile_path, print_search_dict=True,
+                                # print_clusters=True, print_templates=True)
+
+    extractor.generate_histogram()
+
     stop_time = time.time()
 
     print "Stop...\n"
