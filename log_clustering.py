@@ -29,12 +29,12 @@ https://github.com/dateutil/dateutil
 """
 
 
-import editdistance
-from dateutil.parser import parse as timeparser
-import numpy as np
 import re
 import socket
 import time
+import numpy as np
+import editdistance
+from dateutil.parser import parse as timeparser
 
 
 class LogTemplateExtractor(object):
@@ -681,9 +681,13 @@ def main():
     print "\nStart...\n"
 
     start_time = time.time()
-    logfile = "/home/cliu/Documents/SC-1/messages.1"
+    logfile = "/home/cliu/Documents/SC-1/messages.0"
 
     extractor = LogTemplateExtractor(logfile)
+    extractor.set_template_file("/home/cliu/Documents/SC-1/output0")
+    extractor.set_cluster_file("/home/cliu/Documents/SC-1/console0")
+    extractor.set_seqfile("/home/cliu/Documents/SC-1/sequence0")
+    extractor.set_search_dict_file("/home/cliu/Documents/SC-1/search_dict0")
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
