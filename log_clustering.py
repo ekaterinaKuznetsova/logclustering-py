@@ -29,6 +29,8 @@ https://github.com/dateutil/dateutil
 """
 
 
+import errno
+import glob
 import re
 import socket
 import time
@@ -37,7 +39,7 @@ import editdistance
 from dateutil.parser import parse as timeparser
 
 
-class LogTemplateExtractor(object):
+class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
     """
     A log template extractor.
 
@@ -55,15 +57,15 @@ class LogTemplateExtractor(object):
             and their IDs
         search_dict: a dictionary, stroing tempalte IDs for new log matching
     """
-    def __init__(self, logfile):
+    def __init__(self, logfile_path):
         """
         Inits LogTemplateExtractor class.
         """
-        self.logfile = logfile
-        self.template_file = "/home/cliu/Documents/SC-1/output"
-        self.cluster_file = "/home/cliu/Documents/SC-1/console"
-        self.seqfile = "/home/cliu/Documents/SC-1/sequence"
-        self.search_dict_file = "/home/cliu/Documents/SC-1/search_dict"
+        self.logfile_path = logfile_path
+        self.template_file = "./template"
+        self.cluster_file = "./clusters"
+        self.seqfile_path = "./sequences/"
+        self.search_dict_file = "./search_dict"
 
         self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
 
@@ -75,17 +77,17 @@ class LogTemplateExtractor(object):
 
         self.search_dict = {}
 
-    def set_logfile(self, logfile):
+    def set_logfile_path(self, logfile_path):
         """
         Set the source log file (name/path) which is going to be analyzed.
         """
-        self.logfile = logfile
+        self.logfile_path = logfile_path
 
-    def set_seqfile(self, seqfile):
+    def set_seqfile_path(self, seqfile_path):
         """
         Set the sequence log file (name/path) which final sequence of the logs.
         """
-        self.seqfile = seqfile
+        self.seqfile_path = seqfile_path
 
     def set_search_dict_file(self, search_dict_file):
         """
@@ -150,7 +152,7 @@ class LogTemplateExtractor(object):
         # We use a dynamic programming algorithm, but with the
         # added optimization that we only need the last two rows
         # of the matrix.
-        previous_row = np.arange(target.size + 1)
+        previous_row = np.arange(target.size + 1) # pylint: disable=E1101
         for item in source:
             # Insertion (target grows longer than source):
             current_row = previous_row + 1
@@ -370,33 +372,37 @@ class LogTemplateExtractor(object):
         # keep track of the the number of each log
         # current_num = 0
 
-        with open(self.logfile) as in_file:
-            # read the first line
-            added_line = in_file.readline()
-            # current_num = current_num + 1
+        # log files
+        logfiles = glob.glob(self.logfile_path)
 
-            # the real first line is the first log appearing with time-stamp
-            while not self.is_timestamp(added_line[:16]):
+        for logfile in logfiles:
+            with open(logfile) as in_file:
+                # read the first line
                 added_line = in_file.readline()
                 # current_num = current_num + 1
 
-            # read th following lines
-            for line in in_file:
-                # current_num = current_num + 1
+                # the real first line is the first log appearing with time-stamp
+                while not self.is_timestamp(added_line[:16]):
+                    added_line = in_file.readline()
+                    # current_num = current_num + 1
 
-                # if the current line is not with time-stamp, it will be
-                # added together to its previous logs until the the previous
-                # nearest log with time-stamp
-                if not self.is_time(line[:16]):
-                    added_line = added_line.rstrip() + ' | ' + line
-                    continue
-                else:
-                    self.add_log(added_line, command_cluster)
-                    # update added_line
-                    added_line = line
+                # read th following lines
+                for line in in_file:
+                    # current_num = current_num + 1
 
-            # Take the last line into account
-            self.add_log(added_line, command_cluster)
+                    # if the current line is not with time-stamp, it will be
+                    # added together to its previous logs until the the previous
+                    # nearest log with time-stamp
+                    if not self.is_time(line[:16]):
+                        added_line = added_line.rstrip() + ' | ' + line
+                        continue
+                    else:
+                        self.add_log(added_line, command_cluster)
+                        # update added_line
+                        added_line = line
+
+                # Take the last line into account
+                self.add_log(added_line, command_cluster)
 
         return command_cluster
 
@@ -638,37 +644,42 @@ class LogTemplateExtractor(object):
         # current_num = 0
 
         print "Start to generate sequence."
-        print "Writing the sequence into %s ..." %self.seqfile
+        print "Writing the sequence into %s ..." %self.seqfile_path
 
-        # print the template representations
-        with open(new_logfile, 'r') as new_file:
-            with open(self.seqfile, 'w') as seq_file:
-                added_line = new_file.readline()
-                # current_num = current_num + 1
+        # log files
+        new_logfiles = glob.glob(self.logfile_path)
 
-                # the real first line is the first log appearing with time-stamp
-                while not self.is_timestamp(added_line[:16]):
+        for new_logfile in new_logfiles:
+            # print the template representations
+            with open(new_logfile, 'r') as new_file:
+                with open(self.seqfile_path +
+                          new_logfile.split("/")[-1], 'w') as seq_file:
                     added_line = new_file.readline()
                     # current_num = current_num + 1
 
-                # read th following lines
-                for line in new_file:
-                    # current_num = current_num + 1
+                    # the real first line is the first log appearing with time-stamp
+                    while not self.is_timestamp(added_line[:16]):
+                        added_line = new_file.readline()
+                        # current_num = current_num + 1
 
-                    # if the current line is not starting with time-stamp, it
-                    # will be added together to its previous logs until the
-                    # previous nearest log with time-stamp
-                    if not self.is_time(line[:16]):
-                        added_line = added_line.rstrip() + ' | ' + line
-                        continue
-                    else:
-                        # match the log with search_dict
-                        self.match_log(added_line, seq_file)
-                        # update added_line
-                        added_line = line
+                    # read th following lines
+                    for line in new_file:
+                        # current_num = current_num + 1
 
-                # Take the last line into account
-                self.match_log(added_line, seq_file)
+                        # if the current line is not starting with time-stamp, it
+                        # will be added together to its previous logs until the
+                        # previous nearest log with time-stamp
+                        if not self.is_time(line[:16]):
+                            added_line = added_line.rstrip() + ' | ' + line
+                            continue
+                        else:
+                            # match the log with search_dict
+                            self.match_log(added_line, seq_file)
+                            # update added_line
+                            added_line = line
+
+                    # Take the last line into account
+                    self.match_log(added_line, seq_file)
 
         print "Sequece generated!\n"
 
@@ -681,19 +692,19 @@ def main():
     print "\nStart...\n"
 
     start_time = time.time()
-    logfile = "/home/cliu/Documents/SC-1/messages.0"
+    logfile_path = "./logs/*"
 
-    extractor = LogTemplateExtractor(logfile)
-    extractor.set_template_file("/home/cliu/Documents/SC-1/output0")
-    extractor.set_cluster_file("/home/cliu/Documents/SC-1/console0")
-    extractor.set_seqfile("/home/cliu/Documents/SC-1/sequence0")
-    extractor.set_search_dict_file("/home/cliu/Documents/SC-1/search_dict0")
+    extractor = LogTemplateExtractor(logfile_path)
+    extractor.set_template_file("./template")
+    extractor.set_cluster_file("./clusters")
+    extractor.set_seqfile_path("./sequences/")
+    extractor.set_search_dict_file("./search_dict")
     # extractor.partition_by_command()
     # extractor.log_clustering()
     # extractor.discover_template(print_clusters=True, print_templates=True)
     # extractor.generate_search_dict(print_search_dict=True,
                                 #    print_clusters=True, print_templates=True)
-    extractor.generate_sequence(logfile, print_search_dict=True,
+    extractor.generate_sequence(logfile_path, print_search_dict=True,
                                 print_clusters=True, print_templates=True)
     stop_time = time.time()
 
