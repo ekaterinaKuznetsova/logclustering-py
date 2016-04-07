@@ -1,14 +1,16 @@
 """
-This program is used to cluster logs based on their similarity. The similarity
-between two logs is measured based the editing distance between. The basic unit
-of a log is not a character but a token.
+This program is used to cluster log messages based on their similarity. The
+similarity between two logs is measured based the editing distance between them.
+For calculating editing distance, the basic unit of a log is not a character
+but a token.
 
-After the clustering, each of the generated cluster will be labeled with integer
-IDs starts from 1. ID 0 represents unknown log for further log matching. These
-IDs will be stored in a dictionary for matching new logs.
+After the clustering, each of the generated cluster will be labeled with an
+integer ID starting from 1. ID 0 represents a place with 'no-log'. The last ID
+represents 'unknown-log' for further log matching. These IDs will be stored in
+a dictionary for matching new logs.
 
-The method 'levenshteinNumPy(source, target)' [1] implemented here is very
-slower than the package 'editdistance' [2], since the source code of
+The method 'levenshteinNumPy(source, target)'[1] implemented here is very slow
+compared with the package 'editdistance'[2], since the source code of
 'editdistance' is written in C++. However, if we would like to modify the
 levenshtein algorithm by adding weights to different token classes
 'levenshteinNumPy(source, target)' is easier to change the code.
@@ -29,8 +31,8 @@ https://github.com/dateutil/dateutil
 """
 
 
-import errno
 import glob
+import os
 import re
 import socket
 import time
@@ -67,14 +69,18 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         self.seqfile_path = "./sequences/"
         self.search_dict_file = "./search_dict"
 
+        # regex of delimiters for tokenization
         self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
 
-        self.distance_threshold = 0.1
+        # the command token could contain English letters, '-', '_', ' ' and '.'
+        # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
+        # mmas_syslog_control_setup.sh, JavaOaM install_imm_model.sh, etc.
+        self.cmd_regex = r'([\w\-\_\./ ]+)([\[:])(.*)'
 
+        self.distance_threshold = 0.1
         self.ignored_chars = 21
 
         self.template_dict = {}
-
         self.search_dict = {}
 
     def set_logfile_path(self, logfile_path):
@@ -289,6 +295,12 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         """
         return [t for t in re.split(self.delimiter_kept, line) if t is not '']
 
+    @classmethod
+    def check_directory(cls, path):
+        if not os.path.exists(path):
+            print "Directory '%s' does not exist. Creat it... " %path
+            os.makedirs(path)
+
     def min_distance(self, added_line, one_cluster_dict):
         """
         Calculate the minimal distance between the log and all the sub-clusters
@@ -331,11 +343,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         Add this log into partition, or create a new partition
         """
         # pattern for extracting the command.
-        # the command token could contain English letters, '-', '_' and '.'
-        # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
-        # mmas_syslog_control_setup.sh, etc.
-        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:])(.*)')
+        cmd_pattern = re.compile(self.cmd_regex)
 
+        # print added_line
         # extract command
         command = re.match(cmd_pattern,
                            added_line[self.ignored_chars:]).group(1)
@@ -375,7 +385,10 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         # log files
         logfiles = glob.glob(self.logfile_path)
 
+        print "    |-Number of log files to be analyzed: %d" %len(logfiles)
+
         for logfile in logfiles:
+            print "        " + logfile
             with open(logfile) as in_file:
                 # read the first line
                 added_line = in_file.readline()
@@ -528,7 +541,7 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         print "\n    |-Generating the search dictionary..."
 
         # regex for extracting command
-        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
+        cmd_pattern = re.compile(self.cmd_regex)
 
         # go through each of the log templates in the dictionary
         # and put their IDs into the search dictionary according to
@@ -579,7 +592,7 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         is_matched = False
 
         # regex for extracting command
-        cmd_pattern = re.compile(r'([\w\-\_\./]+)([\[:*])(.*)')
+        cmd_pattern = re.compile(self.cmd_regex)
         # extract command
         command = re.match(cmd_pattern,
                            added_line[self.ignored_chars:]).group(1)
@@ -645,6 +658,7 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
 
         print "Start to generate sequence."
         print "Writing the sequence into %s ..." %self.seqfile_path
+        self.check_directory(self.seqfile_path)
 
         # log files
         new_logfiles = glob.glob(self.logfile_path)
@@ -652,8 +666,9 @@ class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
         for new_logfile in new_logfiles:
             # print the template representations
             with open(new_logfile, 'r') as new_file:
-                with open(self.seqfile_path +
-                          new_logfile.split("/")[-1], 'w') as seq_file:
+                seqfile_path = self.seqfile_path + new_logfile.split("/")[-1]
+                with open(seqfile_path, 'w') as seq_file:
+                    print "        " + seqfile_path
                     added_line = new_file.readline()
                     # current_num = current_num + 1
 
