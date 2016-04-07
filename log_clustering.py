@@ -42,7 +42,7 @@ import editdistance
 from dateutil.parser import parse as timeparser
 
 
-class LogTemplateExtractor(object): # pylint: disable=R0902, R0904
+class LogTemplateExtractor(object):
     """
     A log template extractor.
 
