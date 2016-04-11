@@ -78,12 +78,12 @@ class LogTemplateExtractor(object):
         self.seqfile_path = "./sequences/"
 
         # regex of delimiters for tokenization
-        self.delimiter_kept = r'([*\s,:()\[\]=|/\\{}\'\"<>])'
+        self.delimiter_kept = r'([\*\s,:()\[\]=|/\\{}\'\"<>\.\_\-])'
 
         # the command token could contain English letters, '-', '_', ' ' and '.'
         # example: rsyslogd, CMW, ERIC-RDA-Merged-Campaign,
         # mmas_syslog_control_setup.sh, JavaOaM install_imm_model.sh, etc.
-        self.cmd_regex = r'([\w\-\_\./ ]+)([\[:])(.*)'
+        self.cmd_regex = r'([\w\-\_\./ \*]+)([\[:])(.*)'
 
         self.distance_threshold = 0.1
         self.ignored_chars = 21
@@ -339,8 +339,6 @@ class LogTemplateExtractor(object):
         Aruguments:
             tokens: {list}, a list of tokens.
         """
-        # hex_pattern = r'0x[\da-fA-F]+'
-
         for i in range(0, len(tokens)):
             token = tokens[i]
             if (self.is_number(token) or
@@ -348,6 +346,11 @@ class LogTemplateExtractor(object):
                     self.is_ip_address(token) or
                     self.is_pci_address(token)):
                 tokens[i] = '*'
+            else:
+                # convert all digits in the token string into '0'
+                tokens[i] = ''.join(('0' if char.isdigit() else char
+                                     for char in token))
+            # tokens[i] = token
 
         return tokens
 
@@ -646,7 +649,7 @@ class LogTemplateExtractor(object):
         for id_ in self.template_dict:
             # get te tempalte representation
             tempalte = self.template_dict[id_]
-            # print tempalte_id
+            # print tempalte
             # get the command of thie template
             command = re.match(cmd_pattern, tempalte).group(1)
 
@@ -825,9 +828,31 @@ class LogTemplateExtractor(object):
                 hist, bin_edges = np.histogram(sequence,
                                                bins=range(max(sequence)))
                 plt.hist(hist, bins=range(max(sequence)))
-                plt.xlim(0, 500)
-                plt.show()
+                plt.xlim(0, 100)
+                plt.ylim(0, 600)
+                plt.savefig(seq_file.split("/")[-1])
+                plt.clf()
+                plt.cla()
 
+    def plot_dots(self):
+        """
+        Plot curve for each of the generated sequence files.
+        """
+        print "Plot curve...\n"
+        # sequence files
+        seq_files = glob.glob(self.seqfile_path + "*")
+
+        for seq_file in seq_files:
+            print "    " + seq_file
+            with open(seq_file, 'r') as seqfile:
+                sequence = [int(id_) for id_ in seqfile]
+                # t = np.arange(0, len(sequence), 1)
+                plt.plot(sequence, 'r*')
+                plt.xlim(0, 50000)
+                plt.ylim(0, 3500)
+                plt.savefig("curve_" + seq_file.split("/")[-1])
+                plt.clf()
+                plt.cla()
 
 def main():
     """
@@ -841,13 +866,15 @@ def main():
     extractor = LogTemplateExtractor(logfile_path)
     extractor.set_template_file("./template")
     extractor.set_cluster_file("./clusters")
-    extractor.set_seqfile_path("./sequences/")
+    extractor.set_seqfile_path("./sequences_old/")
     extractor.set_search_dict_file("./search_dict")
 
     # extractor.generate_sequence(logfile_path, print_search_dict=True,
                                 # print_clusters=True, print_templates=True)
 
-    extractor.generate_histogram()
+    # extractor.generate_histogram()
+
+    extractor.plot_dots()
 
     stop_time = time.time()
 
