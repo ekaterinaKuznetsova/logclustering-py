@@ -32,6 +32,7 @@ https://github.com/dateutil/dateutil
 
 
 import glob
+import cPickle as pickle
 import os
 import re
 import socket
@@ -40,6 +41,167 @@ import matplotlib.pyplot as plt
 import numpy as np
 import editdistance
 from dateutil.parser import parse as timeparser
+
+
+def is_timestamp(string):
+    """
+    Check whether input str is with time format like: Feb 11 05:22:51 .
+
+    Aruguments:
+        string: {string}, input string for time stamp check.
+    """
+    try:
+        time.strptime(string, '%b %d %H:%M:%S ')
+        return True
+    except ValueError:
+        return False
+
+
+def is_time(string):
+    """
+    Check whether this is a time string.
+    It supports most of the time format, more than is_timestamp().
+
+    Aruguments:
+        string: {string}, input string for time check.
+    """
+    try:
+        timeparser(string)
+        return True
+    except ValueError:
+        return False
+
+
+def is_ipv4(address):
+    """
+    Check whether this is a velid ipv4 address.
+
+    Aruguments:
+        address: {string}, input string for ipv4 check.
+    """
+    try:
+        socket.inet_pton(socket.AF_INET, address)
+    except AttributeError:  # no inet_pton here, sorry
+        try:
+            socket.inet_aton(address)
+        except socket.error:
+            return False
+        return address.count('.') == 3
+    except socket.error:  # not a valid address
+        return False
+
+    return True
+
+
+def is_ipv6(address):
+    """
+    Check whether this is a velid ipv6 address.
+
+    Aruguments:
+        address: {string}, input string for ipv4 check.
+    """
+    try:
+        socket.inet_pton(socket.AF_INET6, address)
+    except socket.error:  # not a valid address
+        return False
+    return True
+
+
+def contain_hex(string):
+    """
+    Check whether it contains hex values.
+
+    Aruguments:
+        string: {string}, input string for hex value check.
+    """
+    hex_pattern = r'0x[\da-fA-F]+'
+
+    return re.search(hex_pattern, string) is not None
+
+def is_ip_address(address):
+    """
+    Check whether this is a valid ip address (ipv4 or ipv6).
+
+    Aruguments:
+        address: {string}, input string for ip address(ipv4/ipv6) check.
+    """
+    return is_ipv4(address) or is_ipv6(address)
+
+
+def is_pci_address(address):
+    """
+    Check whether this is a PCI address, like 0000:00:00.0
+
+    Aruguments:
+        address: {string}, input string for pci address check.
+    """
+    pci_addr_pattern = r'(0000):([\da-fA-F]{2}):([\da-fA-F]{2}).(\d)'
+
+    return re.search(pci_addr_pattern, address) is not None
+
+
+def is_number(number):
+    """
+    Check whether this is a number (int, long, float, hex) .
+
+    Aruguments:
+        number: {string}, input string for number check.
+    """
+    try:
+        float(number)  # for int, long, float
+    except ValueError:
+        try:
+            int(number, 16) # for possible hex
+        except ValueError:
+            return False
+
+    return True
+
+
+def to_wildcard(tokens):
+    """
+    Replace number tokens, hex (0x...) tokens, ip addresses and
+    pci addresses by wildcard symbol * .
+
+    Aruguments:
+        tokens: {list}, a list of tokens.
+    """
+    for i in range(0, len(tokens)):
+        token = tokens[i]
+        if (is_number(token) or contain_hex(token) or
+            is_ip_address(token) or is_pci_address(token)):
+            tokens[i] = '*'
+        else:
+            # convert all digits in the token string into '0'
+            tokens[i] = ''.join(('0' if char.isdigit() else char
+                                 for char in token))
+        # tokens[i] = token
+
+    return tokens
+
+
+def compare_two_tokens(token1, token2):
+    """
+    Compare two string tokens:
+    if either of them is *, or they are equal, return True;
+    else, return False.
+
+    Aruguments:
+        token1, token2: {string}, two tokens two be compared.
+    """
+    return token1 == '*' or token2 == '*' or token1 == token2
+
+
+def check_directory(path):
+    """
+    Check whether the path/directory is existing. If not, create a new one.
+
+    Aruguments:
+        path: {string}, the given path/directory.
+    """
+    if not os.path.exists(path):
+        print "Directory '%s' does not exist. Creat it... " %path
+        os.makedirs(path)
 
 
 class LogTemplateExtractor(object):
@@ -213,147 +375,6 @@ class LogTemplateExtractor(object):
 
         return float(previous_row[-1]) / float(max(len(source), len(target)))
 
-    @classmethod
-    def is_timestamp(cls, string):
-        """
-        Check whether input str is with time format like: Feb 11 05:22:51 .
-
-        Aruguments:
-            string: {string}, input string for time stamp check.
-        """
-        try:
-            time.strptime(string, '%b %d %H:%M:%S ')
-            return True
-        except ValueError:
-            return False
-
-    @classmethod
-    def is_time(cls, string):
-        """
-        Check whether this is a time string.
-        It supports most of the time format, more than is_timestamp().
-
-        Aruguments:
-            string: {string}, input string for time check.
-        """
-        try:
-            timeparser(string)
-            return True
-        except ValueError:
-            return False
-
-    @classmethod
-    def is_ipv4(cls, address):
-        """
-        Check whether this is a velid ipv4 address.
-
-        Aruguments:
-            address: {string}, input string for ipv4 check.
-        """
-        try:
-            socket.inet_pton(socket.AF_INET, address)
-        except AttributeError:  # no inet_pton here, sorry
-            try:
-                socket.inet_aton(address)
-            except socket.error:
-                return False
-            return address.count('.') == 3
-        except socket.error:  # not a valid address
-            return False
-
-        return True
-
-    @classmethod
-    def is_ipv6(cls, address):
-        """
-        Check whether this is a velid ipv6 address.
-
-        Aruguments:
-            address: {string}, input string for ipv4 check.
-        """
-        try:
-            socket.inet_pton(socket.AF_INET6, address)
-        except socket.error:  # not a valid address
-            return False
-        return True
-
-
-    def is_ip_address(self, address):
-        """
-        Check whether this is a valid ip address (ipv4 or ipv6).
-
-        Aruguments:
-            address: {string}, input string for ip address(ipv4/ipv6) check.
-        """
-        return self.is_ipv4(address) or self.is_ipv6(address)
-
-    @classmethod
-    def is_pci_address(cls, address):
-        """
-        Check whether this is a PCI address, like 0000:00:00.0
-
-        Aruguments:
-            address: {string}, input string for pci address check.
-        """
-        pci_addr_pattern = r'(0000):([\da-fA-F]{2}):([\da-fA-F]{2}).(\d)'
-
-        return re.search(pci_addr_pattern, address) is not None
-
-    @classmethod
-    def is_number(cls, number):
-        """
-        Check whether this is a number (int, long, float, hex) .
-
-        Aruguments:
-            number: {string}, input string for number check.
-        """
-        try:
-            float(number)  # for int, long, float
-        except ValueError:
-            try:
-                int(number, 16) # for possible hex
-            except ValueError:
-                return False
-
-        return True
-
-    @classmethod
-    def contain_hex(cls, string):
-        """
-        Check whether it contains hex values.
-
-        Aruguments:
-            string: {string}, input string for hex value check.
-        """
-        hex_pattern = r'0x[\da-fA-F]+'
-
-        return re.search(hex_pattern, string) is not None
-
-
-    # @classmethod
-    def to_wildcard(self, tokens):
-        """
-        Replace number tokens, hex (0x...) tokens, ip addresses and
-        pci addresses by wildcard symbol * .
-
-        Aruguments:
-            tokens: {list}, a list of tokens.
-        """
-        for i in range(0, len(tokens)):
-            token = tokens[i]
-            if (self.is_number(token) or
-                    self.contain_hex(token) or
-                    self.is_ip_address(token) or
-                    self.is_pci_address(token)):
-                tokens[i] = '*'
-            else:
-                # convert all digits in the token string into '0'
-                tokens[i] = ''.join(('0' if char.isdigit() else char
-                                     for char in token))
-            # tokens[i] = token
-
-        return tokens
-
     def tokenize(self, line):
         """
         Tokenize the line.
@@ -362,18 +383,6 @@ class LogTemplateExtractor(object):
             line: {string}, one input log message.
         """
         return [t for t in re.split(self.delimiter_kept, line) if t is not '']
-
-    @classmethod
-    def check_directory(cls, path):
-        """
-        Check whether the path/directory is existing. If not, create a new one.
-
-        Aruguments:
-            path: {string}, the given path/directory.
-        """
-        if not os.path.exists(path):
-            print "Directory '%s' does not exist. Creat it... " %path
-            os.makedirs(path)
 
     def min_distance(self, added_line, one_cluster_dict):
         """
@@ -436,7 +445,7 @@ class LogTemplateExtractor(object):
         # tokenize the log message
         line_tokens = self.tokenize(added_line[self.ignored_chars:])
         # convert numbers, hexs, ip address, pci address to *
-        line_tokens = self.to_wildcard(line_tokens)
+        line_tokens = to_wildcard(line_tokens)
 
         # get the length of this token list
         length = len(line_tokens)
@@ -479,7 +488,7 @@ class LogTemplateExtractor(object):
                 # current_num = current_num + 1
 
                 # the real first line is the first log appearing with time-stamp
-                while not self.is_timestamp(added_line[:16]):
+                while not is_timestamp(added_line[:16]):
                     added_line = in_file.readline()
                     # current_num = current_num + 1
 
@@ -490,7 +499,7 @@ class LogTemplateExtractor(object):
                     # if the current line is not with time-stamp, it will be
                     # added together to its previous logs until the the previous
                     # nearest log with time-stamp
-                    if not self.is_time(line[:16]):
+                    if not is_time(line[:16]):
                         added_line = added_line.rstrip() + ' | ' + line
                         continue
                     else:
@@ -551,13 +560,15 @@ class LogTemplateExtractor(object):
                     cluster_file.write(str(i) + '\n')
                     for item in cluster_dict[i]:
                         cluster_file.write(''.join(item).rstrip() + '\n')
+            print "    |-Write the clusters into %s.pkl ..." %self.cluster_file
+            with open(self.cluster_file + '.pkl', 'w') as cluster_pkl_file:
+                pickle.dump(cluster_dict, cluster_pkl_file)
 
         print "    |-Number of clusters generated: %d" %len(cluster_dict)
 
         return cluster_dict
 
-    @classmethod
-    def log_template(cls, cluster):
+    def log_template(self, cluster): # pylint: disable=R0201
         """
         Collect the unique tokens at each position of a log within a cluster.
         Update the positions where >1 unique tokens by wildcard *.
@@ -598,8 +609,14 @@ class LogTemplateExtractor(object):
             print_clusters: {bool}, whether write the clusters into a file.
             print_templates: {bool}, whether write the templates into a file.
         """
-        # get the log cluster dictionary
-        cluster_dict = self.log_clustering(print_clusters=print_clusters)
+        if os.path.isfile(self.cluster_file + '.pkl'):
+            print "%s.pkl existing, loading it...\n" %self.cluster_file
+            with open(self.cluster_file + '.pkl') as cluster_pkl_file:
+                cluster_dict = pickle.load(cluster_pkl_file)
+        else:
+            # get the log cluster dictionary
+            print "%s.pkl not existing, generate it...\n" %self.cluster_file
+            cluster_dict = self.log_clustering(print_clusters=print_clusters)
 
         print "\n    |-Extracting templates..."
 
@@ -615,12 +632,13 @@ class LogTemplateExtractor(object):
                     template_file.write(str(i) + '\n')
                     for item in self.template_dict[i]:
                         template_file.write(item)
+            print "    |-Write the templates into %s.pkl ..." %self.template_file
+            with open(self.template_file + '.pkl', 'w') as template_pkl_file:
+                pickle.dump(self.template_dict, template_pkl_file)
 
         print "    |-Number of tempaltes extracted: %d" %len(self.template_dict)
 
-        return self.template_dict
-
-    def generate_search_dict(self, search_dict_file, print_search_dict=False,
+    def generate_search_dict(self, print_search_dict=False,
                              print_clusters=False, print_templates=False):
         """
         Generate the hashtable for matching new logs and ID them.
@@ -633,8 +651,12 @@ class LogTemplateExtractor(object):
         """
 
         # Generate the template dictionary if it is empty.
-        if not self.template_dict:
-            print "The template representation dictionary is empty.\n"
+        if os.path.isfile(self.template_file + '.pkl'):
+            print "%s.pkl existing, loading it...\n" %self.template_file
+            with open(self.template_file + '.pkl') as template_pkl_file:
+                self.template_dict = pickle.load(template_pkl_file)
+        else:
+            print "%s.pkl not existing, generate it...\n" %self.template_file
             self.discover_template(print_clusters=print_clusters,
                                    print_templates=print_templates)
 
@@ -664,28 +686,19 @@ class LogTemplateExtractor(object):
         # print the template search dictionary
         if print_search_dict:
             print ("    |-Writing the search dictionary into %s ..."
-                   %search_dict_file)
-            with open(search_dict_file, 'w') as search_dict_file:
+                   %self.search_dict_file)
+            with open(self.search_dict_file, 'w') as search_dict_file:
                 for i in self.search_dict:
                     search_dict_file.write('\n' + str(i) + '\n')
                     for item in self.search_dict[i]:
                         search_dict_file.write(str(item) + ' ')
+            print ("    |-Writing the search dictionary into %s.pkl ..."
+                   %self.search_dict_file)
+            with open(self.search_dict_file + '.pkl',
+                      'w') as search_dict_pkl_file:
+                pickle.dump(self.search_dict, search_dict_pkl_file)
 
         print "    |-Template search dictionary generated!\n"
-
-        return self.search_dict
-
-    @classmethod
-    def compare_two_tokens(cls, token1, token2):
-        """
-        Compare two string tokens:
-        if either of them is *, or they are equal, return True;
-        else, return False.
-
-        Aruguments:
-            token1, token2: {string}, two tokens two be compared.
-        """
-        return token1 == '*' or token2 == '*' or token1 == token2
 
     def match_log(self, added_line, seq_file):
         """
@@ -707,7 +720,7 @@ class LogTemplateExtractor(object):
         # tokenize the log message
         line_tokens = self.tokenize(added_line[self.ignored_chars:])
         # convert numbers, hexs, ip address, pci address to *
-        line_tokens = self.to_wildcard(line_tokens)
+        line_tokens = to_wildcard(line_tokens)
         # get the length of this token list
         length = len(line_tokens)
 
@@ -725,7 +738,7 @@ class LogTemplateExtractor(object):
                 # between two tokens  at certain position
                 compare_result = [False for a, b in zip(to_be_compared,
                                                         line_tokens)
-                                  if not self.compare_two_tokens(a, b)]
+                                  if not compare_two_tokens(a, b)]
 
                 # if compare_result is empty, that means they are matched
                 if not compare_result:
@@ -762,10 +775,13 @@ class LogTemplateExtractor(object):
         """
 
         # Generate the search_dict if it is empty.
-        if not self.search_dict:
-            print "The template search dictionary is empty.\n"
-            self.generate_search_dict(self.search_dict_file,
-                                      print_search_dict=print_search_dict,
+        if os.path.isfile(self.search_dict_file + '.pkl'):
+            print "%s.pkl existing, loading it...\n" %self.search_dict_file
+            with open(self.search_dict_file + '.pkl') as search_dict_pkl_file:
+                self.search_dict = pickle.load(search_dict_pkl_file)
+        else:
+            print "%s.pkl not existing, generate it...\n" %self.search_dict_file
+            self.generate_search_dict(print_search_dict=print_search_dict,
                                       print_clusters=print_clusters,
                                       print_templates=print_templates)
 
@@ -773,7 +789,7 @@ class LogTemplateExtractor(object):
 
         print "Start to generate sequence."
         print "Writing the sequence into %s ..." %self.seqfile_path
-        self.check_directory(self.seqfile_path)
+        check_directory(self.seqfile_path)
 
         # log files
         new_logfiles = glob.glob(self.logfile_path)
@@ -788,7 +804,7 @@ class LogTemplateExtractor(object):
                     # current_num = current_num + 1
 
                     # the real first line is the first log appearing with time-stamp
-                    while not self.is_timestamp(added_line[:16]):
+                    while not is_timestamp(added_line[:16]):
                         added_line = new_file.readline()
                         # current_num = current_num + 1
 
@@ -799,7 +815,7 @@ class LogTemplateExtractor(object):
                         # if the current line is not starting with time-stamp, it
                         # will be added together to its previous logs until the
                         # previous nearest log with time-stamp
-                        if not self.is_time(line[:16]):
+                        if not is_time(line[:16]):
                             added_line = added_line.rstrip() + ' | ' + line
                             continue
                         else:
@@ -825,7 +841,7 @@ class LogTemplateExtractor(object):
             print "    " + seq_file
             with open(seq_file, 'r') as seqfile:
                 sequence = [int(id_) for id_ in seqfile]
-                hist, bin_edges = np.histogram(sequence,
+                hist, bin_edges = np.histogram(sequence, # pylint: disable=W0612
                                                bins=range(max(sequence)))
                 plt.hist(hist, bins=range(max(sequence)))
                 plt.xlim(0, 100)
@@ -862,19 +878,19 @@ def main():
 
     start_time = time.time()
 
-    logfile_path = "./logs/*"
+    logfile_path = "./normal-logs/*"
     extractor = LogTemplateExtractor(logfile_path)
     extractor.set_template_file("./template")
     extractor.set_cluster_file("./clusters")
-    extractor.set_seqfile_path("./sequences_old/")
+    extractor.set_seqfile_path("./sequences/")
     extractor.set_search_dict_file("./search_dict")
 
-    # extractor.generate_sequence(logfile_path, print_search_dict=True,
-                                # print_clusters=True, print_templates=True)
+    extractor.generate_sequence(logfile_path, print_search_dict=True,
+                                print_clusters=True, print_templates=True)
 
     # extractor.generate_histogram()
 
-    extractor.plot_dots()
+    # extractor.plot_dots()
 
     stop_time = time.time()
 
