@@ -757,7 +757,7 @@ class LogTemplateExtractor(object):
                 # print str(current_num) + ' False'
 
 
-    def generate_sequence(self, new_logfile, print_search_dict=False,
+    def generate_sequence(self, new_logfile_path, print_search_dict=False,
                           print_clusters=False, print_templates=False):
         """
         Generate the log sequence based on previous generated templates and
@@ -766,13 +766,22 @@ class LogTemplateExtractor(object):
         Or: put the un-matched logs into the cluster '0', representing 'unknown'
 
         Aruguments:
-            new_logfile: {string}, the path of log files to be matched for
+            new_logfile_path: {string}, the path of log files to be matched for
                 generating sequences.
             print_search_dict: {bool}, whether write the search dictionaries
                 into a file.
             print_clusters: {bool}, whether write the clusters into a file.
             print_templates: {bool}, whether write the templates into a file.
         """
+        # Generate the template dictionary if it is empty.
+        if os.path.isfile(self.template_file + '.pkl'):
+            print "%s.pkl existing, loading it...\n" %self.template_file
+            with open(self.template_file + '.pkl') as template_pkl_file:
+                self.template_dict = pickle.load(template_pkl_file)
+        else:
+            print "%s.pkl not existing, generate it...\n" %self.template_file
+            self.discover_template(print_clusters=print_clusters,
+                                   print_templates=print_templates)
 
         # Generate the search_dict if it is empty.
         if os.path.isfile(self.search_dict_file + '.pkl'):
@@ -792,7 +801,7 @@ class LogTemplateExtractor(object):
         check_directory(self.seqfile_path)
 
         # log files
-        new_logfiles = glob.glob(self.logfile_path)
+        new_logfiles = glob.glob(new_logfile_path)
 
         for new_logfile in new_logfiles:
             # print the template representations
@@ -811,6 +820,7 @@ class LogTemplateExtractor(object):
                     # read th following lines
                     for line in new_file:
                         # current_num = current_num + 1
+                        # print current_num
 
                         # if the current line is not starting with time-stamp, it
                         # will be added together to its previous logs until the
@@ -878,14 +888,15 @@ def main():
 
     start_time = time.time()
 
-    logfile_path = "./normal-logs/*"
+    logfile_path = "./log-normal/*"
+    new_logfile_path = "./log-big/*"
     extractor = LogTemplateExtractor(logfile_path)
     extractor.set_template_file("./template")
     extractor.set_cluster_file("./clusters")
-    extractor.set_seqfile_path("./sequences/")
+    extractor.set_seqfile_path("./sequences-big/")
     extractor.set_search_dict_file("./search_dict")
 
-    extractor.generate_sequence(logfile_path, print_search_dict=True,
+    extractor.generate_sequence(new_logfile_path, print_search_dict=True,
                                 print_clusters=True, print_templates=True)
 
     # extractor.generate_histogram()
